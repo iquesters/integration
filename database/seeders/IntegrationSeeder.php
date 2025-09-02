@@ -27,7 +27,7 @@ class IntegrationSeeder extends Seeder
         $this->command->info('Starting Integration seeding...');
         $this->command->newLine();
 
-        $this->seedFromDirectory(database_path('seeders'));
+        $this->seedFromDirectory(__DIR__);
 
         $this->displayFinalStats();
     }
@@ -137,6 +137,7 @@ class IntegrationSeeder extends Seeder
             } else {
                 // Create new record
                 $record = Integration::create([
+                    'uid' => (string) Str::ulid(),
                     'name' => $item['name'],
                     'small_name' => $item['small_name'] ?? '',
                     'nature' => $item['nature'] ?? 'REST API',

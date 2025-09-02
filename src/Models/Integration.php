@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace Iquesters\Integration\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,5 +25,11 @@ class Integration extends Model
     public function metas()
     {
         return $this->hasMany(IntegrationMeta::class, 'ref_parent');
+    }
+
+    public function getMeta($key)
+    {
+        $meta = $this->metas()->where('meta_key', $key)->first();
+        return $meta ? $meta->meta_value : null;
     }
 }

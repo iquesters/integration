@@ -27,7 +27,7 @@ return new class extends Migration
             $table->id();
             $table->bigInteger('ref_parent')->unsigned()->nullable();
             $table->string('meta_key');
-            $table->string('meta_value');
+            $table->longText('meta_value');
             $table->string('status')->default('unknown');
             $table->bigInteger('created_by')->default(0);
             $table->bigInteger('updated_by')->default(0);
