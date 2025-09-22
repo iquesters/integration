@@ -6,7 +6,7 @@ return [
         'value' => '
             {
                 "method": "DELETE",
-                "url": "https://www.zohoapis.com/books/v3/contacts/{contact_id}",
+                "url": "https://www.zohoapis.in/books/v3/contacts/{contact_id}",
                 "query_params": {
                 "organization_id": "string"
                 },
@@ -18,7 +18,9 @@ return [
                 "code": "number",
                 "message": "string"
                 },
-                "oauth_scope": "ZohoBooks.contacts.DELETE"
+                "oauth_scope": "ZohoBooks.contacts.DELETE",
+                "response_schema_id_key" : "",
+                "req_schema_required_keys" : [""]
             }',
         'status' => 'inactive',
     ]

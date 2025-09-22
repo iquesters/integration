@@ -6,7 +6,7 @@ return [
         'value' => '
             {
                 "method": "GET",
-                "url": "https://www.zohoapis.com/books/v3/contacts",
+                "url": "https://www.zohoapis.in/books/v3/contacts",
                 "query_params": {
                 "organization_id": "string",
                 "filter_by": "string",
@@ -52,8 +52,10 @@ return [
                     "sort_order": "string"
                 }
                 },
-                "oauth_scope": "ZohoBooks.contacts.READ"
+                "oauth_scope": "ZohoBooks.contacts.READ",
+                "response_schema_id_key" : "contacts/contact_id",
+                "req_schema_required_keys" : [""]
             }',
-        'status' => 'inactive',
+        'status' => 'active',
     ]
 ];

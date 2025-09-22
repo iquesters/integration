@@ -6,7 +6,7 @@ return [
         'value' => '
             {
                 "method": "POST",
-                "url": "https://www.zohoapis.com/books/v3/contacts",
+                "url": "https://www.zohoapis.in/books/v3/contacts",
                 "query_params": {
                 "organization_id": "string"
                 },
@@ -264,7 +264,9 @@ return [
                     "last_modified_time": "string"
                 }
                 },
-                "oauth_scope": "ZohoBooks.contacts.CREATE"
+                "oauth_scope": "ZohoBooks.contacts.CREATE",
+                "response_schema_id_key" : "contacts/contact_id",
+                "req_schema_required_keys" : ["contact_name"]
             }',
         'status' => 'inactive',
     ]
