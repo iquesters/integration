@@ -195,8 +195,19 @@
                 <hr>
                 <div class="d-flex align-items-center justify-content-start gap-2">
                     <h5 class="fs-6 text-muted">Project Entity for Mapping</h5>
-                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#saveEntityModal">Save Entity</button>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#saveEntityModal">
+                        Save Entity
+                    </button>
                 </div>
+
+                @if (!empty($existingEntityConfig))
+                    <div class="">
+                        <small class="text-muted">
+                            <strong>Entities:</strong> {{ $existingEntityConfig['entity_names'] ?? '—' }} <br>
+                            <strong>Default Entity:</strong> {{ $existingEntityConfig['default_entity'] ?? '—' }}
+                        </small>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

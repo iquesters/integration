@@ -509,4 +509,141 @@ class ApiConfigurationController extends Controller
             return [];
         }
     }
+
+    /**
+     * Save field mappings (both response and body)
+     */
+    public function saveFieldMappings(Request $request, $organisationUid, $integrationUid, $apiId)
+    {
+        try {
+            $request->validate([
+                'api_id' => 'required|exists:integration_metas,id',
+                'table_name' => 'required|string',
+                'mappings' => 'required|array',
+                'body_mappings' => 'array',
+            ]);
+
+            $organisation = null;
+            if (class_exists(\Iquesters\Organisation\Models\Organisation::class)) {
+                $organisation = \Iquesters\Organisation\Models\Organisation::where('uid', $organisationUid)->firstOrFail();
+            }
+
+            if (!$organisation) {
+                $organisation = new class {
+                    public $id = 1;
+                    public $uid;
+                };
+                $organisation->uid = $organisationUid;
+            }
+            $userId = Auth::id();
+
+            // Get the integration record
+            $integration = Integration::where('uid', $integrationUid)->firstOrFail();
+            $shortName = $integration->small_name ?? '_';
+
+            // Get the API record
+            $api = IntegrationMeta::findOrFail($request->api_id);
+            $parts = explode('_', $api->meta_key, 2);
+            $apiName = $parts[1] ?? $api->meta_key;
+
+            $tableName = $request->table_name;
+            $mappingsData = $request->mappings;
+            $bodyMappingsData = $request->body_mappings ?? [];
+
+            // Get or create the parent integration record
+            $parentIntegration = OrganisationIntegration::firstOrCreate(
+                [
+                    'organisation_id' => $organisation->id,
+                    'integration_masterdata_id' => $integration->id
+                ],
+                [
+                    'created_by' => $userId,
+                    'updated_by' => $userId
+                ]
+            );
+
+            // Process response mappings
+            $responseMappings = [];
+            foreach ($mappingsData as $key => $mapping) {
+                if (!empty($mapping['response_field'])) {
+                    // Extract column name from project_field
+                    $parts = explode('.', $mapping['project_field']);
+                    $columnName = end($parts);
+
+                    if (str_contains($columnName, '->')) {
+                        $columnParts = explode('->', $columnName);
+                        $columnName = end($columnParts);
+                    }
+
+                    $responseMappings[$columnName] = [
+                        'res_path' => $mapping['response_field'],
+                        'override' => null
+                    ];
+                }
+            }
+
+            // Process body mappings
+            $bodyMappings = [];
+            foreach ($bodyMappingsData as $key => $mapping) {
+                if (!empty($mapping['project_field'])) {
+                    // Extract column name from project_field
+                    $parts = explode('.', $mapping['project_field']);
+                    $columnName = end($parts);
+
+                    if (str_contains($columnName, '->')) {
+                        $columnParts = explode('->', $columnName);
+                        $columnName = end($columnParts);
+                    }
+
+                    $bodyMappings[$mapping['body_field']] = [
+                        'entity_col' => $columnName,
+                        'override' => null
+                    ];
+                }
+            }
+
+            // Prepare combined mapping structure
+            $combinedMappingStructure = [
+                $tableName => [
+                    'request' => $bodyMappings,
+                    'response' => $responseMappings
+                ]
+            ];
+
+            $metaValue = json_encode($combinedMappingStructure);
+            $metaKey = $apiName . '_' . $tableName . '_conf';
+
+            // Save combined mappings to organisation_integration_metas table
+            OrganisationIntegrationMeta::updateOrCreate(
+                [
+                    'ref_parent' => $parentIntegration->id,
+                    'meta_key' => $metaKey
+                ],
+                [
+                    'meta_value' => $metaValue,
+                    'status' => 'active',
+                    'created_by' => $userId,
+                    'updated_by' => $userId
+                ]
+            );
+
+            // Redirect to the integration show page
+            return redirect()->route('organisations.integration.show', [
+                'organisationUid' => $organisationUid,
+                'integrationUid' => $integrationUid
+            ])->with('success', 'Field mappings saved successfully!');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error saving field mappings: ' . $e->getMessage(), [
+                'organisation_uid' => $organisationUid,
+                'integration_uid' => $integrationUid,
+                'api_id' => $apiId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()->with('error', 'Error saving field mappings: ' . $e->getMessage());
+        }
+    }
 }

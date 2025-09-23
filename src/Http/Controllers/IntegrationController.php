@@ -225,7 +225,22 @@ class IntegrationController extends Controller
             ->where('integration_masterdata_id', $zohoBooksIntegration->id)
             ->first();
 
-        // Default values
+        // ----------------------------
+        // Entity Config decode
+        $existingEntityConfig = [];
+
+        if ($integration) {
+            $entityConfigMeta = $integration->metas()
+                ->where('meta_key', 'entity_configuration')
+                ->first();
+
+            if ($entityConfigMeta && $entityConfigMeta->meta_value) {
+                $existingEntityConfig = json_decode($entityConfigMeta->meta_value, true) ?? [];
+                Log::info('Decoded Entity Config', $existingEntityConfig);
+            }
+        }
+
+        // ✅ Default values for Zoho tokens/scopes
         $clientId = $clientSecret = $code = $accessToken = $refreshToken = $organisationId = null;
         $selectedScopes = [];
         $accessTokenCreatedAt = null;
@@ -255,28 +270,32 @@ class IntegrationController extends Controller
             $accessTokenCreatedAt,
             $organisationId
         );
+
         Log::info('integration status', ['integrationStatus' => $integrationStatus]);
+
         // ✅ Selected APIs
         $selectedApis = $integration ? $integration->getSelectedZohoBooksMetas() : collect();
         Log::info('selected apis', ['selectedApis' => $selectedApis]);
+
         return view('integration::integrations.zoho_books.zoho-books', [
-            'organisation'      => $organisation,
-            'integrationStatus' => $integrationStatus,
-            'application'       => $zohoBooksIntegration,
-            'metas'             => $zohoBooksIntegration->metas()
+            'organisation'        => $organisation,
+            'integrationStatus'   => $integrationStatus,
+            'application'         => $zohoBooksIntegration,
+            'metas'               => $zohoBooksIntegration->metas()
                 ->where('meta_key', 'like', 'api_%')
                 ->where('status', 'active')
                 ->get(),
-            'selectedApis'      => $selectedApis,
-            'integration'       => $integration,
-            'clientId'          => $clientId,
-            'clientSecret'      => $clientSecret,
-            'code'              => $code,
-            'organisationId'    => $organisationId,
-            'selectedScopes'    => $selectedScopes,
+            'selectedApis'        => $selectedApis,
+            'integration'         => $integration,
+            'clientId'            => $clientId,
+            'clientSecret'        => $clientSecret,
+            'code'                => $code,
+            'organisationId'      => $organisationId,
+            'selectedScopes'      => $selectedScopes,
+            'existingEntityConfig' => $existingEntityConfig,
         ]);
     }
-    
+
     /**
      * Get Zoho Books integration status with security in mind
      */
