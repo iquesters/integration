@@ -31,15 +31,23 @@ class ApiConfigurationController extends Controller
             };
             $organisation->uid = $organisationUid;
         }
+        
         $zohoBooksIntegration = Integration::where('uid', $integrationUid)->firstOrFail();
         $api = IntegrationMeta::where('id', $apiId)->firstOrFail();
 
-        // Get selected table from request or default to 'persons'
-        $selectedTable = $request->get('table_name', 'persons');
+        // Get selected table from request or default to first available entity
+        $selectedTable = $request->get('table_name', '');
+        
+        // Get available entities/tables for dropdown (dynamic from organisation_integration_metas)
+        $entities = $this->getAvailableEntities($organisation->id, $zohoBooksIntegration->id);
+        
+        // If no table selected and entities exist, use the first one
+        if (empty($selectedTable)) {
+            $selectedTable = !empty($entities) ? $entities[0]['table_name'] : 'persons';
+        }
 
-        // Get available entities/tables for dropdown
-        $entities = $this->getAvailableEntities();
         Log::info('Selected Table: ' . $selectedTable);
+        
         // Get project table fields for mapping (excluding unwanted columns)
         $mappableFields = $this->getMappableFields($selectedTable);
 
@@ -86,14 +94,69 @@ class ApiConfigurationController extends Controller
     }
 
     /**
-     * Get available entities/tables for dropdown
+     * Get available entities/tables for dropdown (dynamic from organisation_integration_metas)
      */
-    private function getAvailableEntities()
+    private function getAvailableEntities($organisationId, $integrationId)
+    {
+        try {
+            // Get the parent integration record
+            $parentIntegration = OrganisationIntegration::where([
+                'organisation_id' => $organisationId,
+                'integration_masterdata_id' => $integrationId
+            ])->first();
+
+            if (!$parentIntegration) {
+                return $this->getDefaultEntities();
+            }
+
+            // Look for entity configuration in organisation_integration_metas
+            $entityMeta = OrganisationIntegrationMeta::where([
+                'ref_parent' => $parentIntegration->id,
+                'meta_key' => 'entity_configuration'
+            ])->first();
+
+            if (!$entityMeta) {
+                return $this->getDefaultEntities();
+            }
+
+            // Parse the entity configuration
+            $metaValue = json_decode($entityMeta->meta_value, true);
+
+            $entityNames = $metaValue['entity_names'] ?? '';
+            $defaultEntity = $metaValue['default_entity'] ?? '';
+
+            if (empty($entityNames)) {
+                return $this->getDefaultEntities();
+            }
+
+            // Split comma-separated entity names
+            $entities = array_map('trim', explode(',', $entityNames));
+
+            $availableEntities = [];
+            foreach ($entities as $entity) {
+                if (!empty($entity)) {
+                    $availableEntities[] = [
+                        'table_name' => $entity,
+                        'display_name' => ucwords(str_replace('_', ' ', $entity))
+                    ];
+                }
+            }
+
+            return !empty($availableEntities) ? $availableEntities : $this->getDefaultEntities();
+        } catch (\Exception $e) {
+            Log::error('Error getting available entities: ' . $e->getMessage());
+            return $this->getDefaultEntities();
+        }
+    }
+
+    /**
+     * Fallback to default entities if dynamic lookup fails
+     */
+    private function getDefaultEntities()
     {
         return [
-            ['table_name' => 'users', 'display_name' => 'Users'],
-            ['table_name' => 'master_data', 'display_name' => 'Projects'],
-            // Add more entities as needed
+            ['table_name' => 'persons', 'display_name' => 'Persons'],
+            ['table_name' => 'projects', 'display_name' => 'Projects'],
         ];
     }
 

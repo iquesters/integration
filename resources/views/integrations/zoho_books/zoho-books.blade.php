@@ -192,6 +192,11 @@
                     </div>
 
                 </div>
+                <hr>
+                <div class="d-flex align-items-center justify-content-start gap-2">
+                    <h5 class="fs-6 text-muted">Project Entity for Mapping</h5>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#saveEntityModal">Save Entity</button>
+                </div>
             </div>
         </div>
     </div>
@@ -218,7 +223,7 @@
                 @method('POST')
 
                 <div class="modal-header">
-                    <h5 class="modal-title" id="manageMetasModalLabel">Manage Zoho Books API</h5>
+                    <h5 class="modal-title fs-6" id="manageMetasModalLabel">Manage Zoho Books API</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
 
@@ -249,12 +254,12 @@
     </div>
 </div>
 
-<!-- Modal 1: Setup Account -->
+    <!-- Modal 1: Setup Account -->
     <div class="modal fade" id="setupAccountModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Step 1: Setup Zoho Account</h5>
+                    <h5 class="modal-title fs-6">Step 1: Setup Zoho Account</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -296,7 +301,7 @@
                     @csrf
                     <input type="hidden" name="form_type" value="client_details">
                     <div class="modal-header">
-                        <h5 class="modal-title">Step 2: Client Details</h5>
+                        <h5 class="modal-title fs-6">Step 2: Client Details</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -332,7 +337,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Step 3: Authorize Integration</h5>
+                    <h5 class="modal-title fs-6">Step 3: Authorize Integration</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -392,7 +397,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Step 4: Generate Access Token</h5>
+                    <h5 class="modal-title fs-6">Step 4: Generate Access Token</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -436,7 +441,7 @@
                     @csrf
                     <input type="hidden" name="form_type" value="organisation_id">
                     <div class="modal-header">
-                        <h5 class="modal-title">Step 5: Organisation ID</h5>
+                        <h5 class="modal-title fs-6">Step 5: Organisation ID</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -463,6 +468,50 @@
             </div>
         </div>
     </div>
+
+<!-- Save Entity Modal -->
+<div class="modal fade" id="saveEntityModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ route('organisations.integration.save-entity-configuration', [$organisation->uid, $application->uid]) }}" method="POST">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title fs-6">Save Project Entity for Mapping with APIs</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">
+                        Write the entity names separated by commas.  
+                        Example: <code>persons, projects, tasks</code>.  
+                        We search for unique columns and unique meta keys, and we prefer a table structure like <code>persons, person_metas</code>.
+                    </p>
+
+                    <!-- Entity names input -->
+                    <div class="mb-3">
+                        <label for="entityNames" class="form-label">Entity Names (comma separated)</label>
+                        <input type="text" class="form-control" id="entityNames" name="entity_names" 
+                               value="{{ old('entity_names', $existingEntityConfig['entity_names'] ?? '') }}" 
+                               placeholder="e.g. persons, projects, tasks" required>
+                    </div>
+
+                    <!-- Default entity field -->
+                    <div class="mb-3">
+                        <label for="defaultEntity" class="form-label">Default Entity</label>
+                        <input type="text" class="form-control" id="defaultEntity" name="default_entity" 
+                               value="{{ old('default_entity', $existingEntityConfig['default_entity'] ?? '') }}" 
+                               placeholder="e.g. persons" required>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-dark" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')

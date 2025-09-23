@@ -881,4 +881,70 @@ class IntegrationController extends Controller
             return redirect()->back()->with('error', $e->getMessage());
         }
     }
+    
+    /**
+     * Save entity configuration from the modal
+     */
+    public function saveEntityConfiguration(Request $request, $organisationUid, $integrationUid)
+    {
+        try {
+            $request->validate([
+                'entity_names' => 'required|string|max:500',
+                'default_entity' => 'required|string|max:255'
+            ]);
+
+            $organisation = null;
+            if (class_exists(\Iquesters\Organisation\Models\Organisation::class)) {
+                $organisation = \Iquesters\Organisation\Models\Organisation::where('uid', $organisationUid)->firstOrFail();
+            }
+
+            if (!$organisation) {
+                $organisation = new class {
+                    public $id = 1;
+                    public $uid;
+                };
+                $organisation->uid = $organisationUid;
+            }
+
+            $integration = Integration::where('uid', $integrationUid)->firstOrFail();
+            $userId = Auth::id();
+
+            // Get or create the parent integration record
+            $parentIntegration = OrganisationIntegration::firstOrCreate(
+                [
+                    'organisation_id' => $organisation->id,
+                    'integration_masterdata_id' => $integration->id
+                ],
+                [
+                    'created_by' => $userId,
+                    'updated_by' => $userId
+                ]
+            );
+
+            // Save entity configuration
+            $entityConfig = [
+                'entity_names' => $request->entity_names,
+                'default_entity' => $request->default_entity
+            ];
+
+            OrganisationIntegrationMeta::updateOrCreate(
+                [
+                    'ref_parent' => $parentIntegration->id,
+                    'meta_key' => 'entity_configuration'
+                ],
+                [
+                    'meta_value' => json_encode($entityConfig),
+                    'status' => 'active',
+                    'created_by' => $userId,
+                    'updated_by' => $userId
+                ]
+            );
+
+            return redirect()->back()->with('success', 'Entity configuration saved successfully!');
+        } catch (\Exception $e) {
+            Log::error('Error saving entity configuration: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to save entity configuration.');
+        }
+    }
+    
 }

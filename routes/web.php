@@ -16,6 +16,7 @@ Route::middleware('web')->group(function () {
                 Route::post('/{integrationUid}/regenerate-access-token', [IntegrationController::class, 'regenerateAccessToken'])->name('zoho-books.regenerate-access-token');
                 Route::post('/{integrationUid}/get-tokens', [IntegrationController::class, 'getTokens'])->name('zoho-books.tokens');
                 Route::post('/zoho-books/{integrationUid}/save-api-name', [IntegrationController::class, 'saveApiName'])->name('save-api-name');
+                Route::post('/{integrationUid}/save-entity-configuration', [IntegrationController::class, 'saveEntityConfiguration'])->name('save-entity-configuration');
                 Route::get('/{integrationUid}/api/{apiId}/configure', [ApiConfigurationController::class, 'apiConfigure'])->name('api.configure');
                 Route::post('/{integrationUid}/api/{apiId}/save-configuration', [ApiConfigurationController::class, 'saveFieldMappings'])->name('api.save-configuration');
             });
