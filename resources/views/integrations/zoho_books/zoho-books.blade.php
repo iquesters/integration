@@ -1,6 +1,6 @@
-@extends('integration::layouts.app')
+@extends('integration::layouts.general-configuration')
 
-@section('content')
+@section('general-configuration-content')
     <div>
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="fs-6 text-muted">Zoho Books Integration Status</h5>
