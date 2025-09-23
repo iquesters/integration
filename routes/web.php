@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Iquesters\Integration\Http\Controllers\ApiConfigurationController;
 use Iquesters\Integration\Http\Controllers\IntegrationController;
 
 Route::middleware('web')->group(function () {
@@ -16,6 +17,7 @@ Route::middleware('web')->group(function () {
                 Route::post('/{integrationUid}/get-tokens', [IntegrationController::class, 'getTokens'])->name('zoho-books.tokens');
                 Route::post('/zoho-books/{integrationUid}/save-api-name', [IntegrationController::class, 'saveApiName'])->name('save-api-name');
                 Route::get('/{integrationUid}/api/{apiId}/configure', [ApiConfigurationController::class, 'apiConfigure'])->name('api.configure');
+                Route::post('/{integrationUid}/api/{apiId}/save-configuration', [ApiConfigurationController::class, 'saveFieldMappings'])->name('api.save-configuration');
             });
         });
     });

@@ -1,0 +1,449 @@
+<?php
+
+namespace Iquesters\Integration\Http\Controllers;
+
+use Illuminate\Routing\Controller;
+use Iquesters\Integration\Models\OrganisationIntegration;
+use Iquesters\Integration\Models\OrganisationIntegrationMeta;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Iquesters\Integration\Models\Integration;
+use Iquesters\Integration\Models\IntegrationMeta;
+
+class ApiConfigurationController extends Controller
+{
+    public function apiConfigure($organisationUid, $integrationUid, $apiId, Request $request)
+    {
+        $organisation = null;
+        if (class_exists(\Iquesters\Organisation\Models\Organisation::class)) {
+            $organisation = \Iquesters\Organisation\Models\Organisation::where('uid', $organisationUid)->firstOrFail();
+        }
+
+        if (!$organisation) {
+            // fallback dummy organisation
+            $organisation = new class {
+                public $id = 1;
+                public $uid;
+                public $name = 'Default Organisation';
+            };
+            $organisation->uid = $organisationUid;
+        }
+        $zohoBooksIntegration = Integration::where('uid', $integrationUid)->firstOrFail();
+        $api = IntegrationMeta::where('id', $apiId)->firstOrFail();
+
+        // Get selected table from request or default to 'persons'
+        $selectedTable = $request->get('table_name', 'persons');
+
+        // Get available entities/tables for dropdown
+        $entities = $this->getAvailableEntities();
+        Log::info('Selected Table: ' . $selectedTable);
+        // Get project table fields for mapping (excluding unwanted columns)
+        $mappableFields = $this->getMappableFields($selectedTable);
+
+        // Parse response schema to get available response fields
+        $responseFields = $this->parseResponseSchema($api);
+
+        // Parse body schema to get available body fields
+        $bodySchemaData = $this->parseBodySchema($api);
+        $requiredBodyFields = $bodySchemaData['required'] ?? [];
+        $optionalBodyFields = $bodySchemaData['optional'] ?? [];
+
+        // Get existing mappings if any
+        $existingMappings = $this->getExistingMappings($apiId, $organisation->id, $zohoBooksIntegration->id, $selectedTable);
+        $existingBodyMappings = $this->getExistingBodyMappings($apiId, $organisation->id, $zohoBooksIntegration->id, $selectedTable);
+
+        // Extract response_schema_id_key if available
+        $responseSchemaIdKey = null;
+        $bodySchemaIdKey = null;
+        try {
+            $metaValue = json_decode($api->meta_value, true);
+            $responseSchemaIdKey = $metaValue['response_schema_id_key'] ?? null;
+            $bodySchemaIdKey = $metaValue['body_schema_id_key'] ?? null;
+        } catch (\Exception $e) {
+            Log::error('Error parsing schema ID key: ' . $e->getMessage());
+        }
+
+        return view('integration::integrations.zoho_books.api-configure', compact(
+            'zohoBooksIntegration',
+            'api',
+            'entities',
+            'selectedTable',
+            'mappableFields',
+            'responseFields',
+            'requiredBodyFields',
+            'optionalBodyFields',
+            'existingMappings',
+            'existingBodyMappings',
+            'organisation',
+            'organisationUid',
+            'integrationUid',
+            'responseSchemaIdKey',
+            'bodySchemaIdKey'
+        ));
+    }
+
+    /**
+     * Get available entities/tables for dropdown
+     */
+    private function getAvailableEntities()
+    {
+        return [
+            ['table_name' => 'users', 'display_name' => 'Users'],
+            ['table_name' => 'master_data', 'display_name' => 'Projects'],
+            // Add more entities as needed
+        ];
+    }
+
+    /**
+     * Get mappable fields from table (excluding unwanted columns)
+     */
+    private function getMappableFields($tableName)
+    {
+        $excludedColumns = ['uid', 'ref_parent', 'status', 'created_by', 'updated_by', 'created_at', 'updated_at'];
+
+        // Get main table fields
+        $mainFields = $this->getTableFields($tableName, $excludedColumns);
+
+        // Get meta table fields
+        $metaTableName = $this->getMetaTableName($tableName);
+        $metaKeys = $this->getUniqueMetaKeys($metaTableName);
+
+        // Combine fields
+        $combinedFields = [];
+
+        // Add main table fields
+        foreach ($mainFields as $field) {
+            $combinedFields[] = [
+                'value' => $field['full_path'],
+                'display_name' => $field['display_name'],
+                'type' => $field['type'],
+                'source' => 'main_table'
+            ];
+        }
+
+        // Add meta keys
+        foreach ($metaKeys as $metaKey) {
+            $combinedFields[] = [
+                'value' => $metaKey['full_path'],
+                'display_name' => $metaKey['display_name'],
+                'type' => 'meta',
+                'source' => 'meta_table'
+            ];
+        }
+
+        return $combinedFields;
+    }
+
+    /**
+     * Get table fields (excluding unwanted columns)
+     */
+    private function getTableFields($tableName, $excludedColumns = [])
+    {
+        if (!Schema::hasTable($tableName)) {
+            return [];
+        }
+
+        $columns = Schema::getColumnListing($tableName);
+        $fields = [];
+
+        foreach ($columns as $column) {
+            if (in_array($column, $excludedColumns)) {
+                continue;
+            }
+
+            $columnType = Schema::getColumnType($tableName, $column);
+
+            $fields[] = [
+                'name' => $column,
+                'type' => $columnType,
+                'display_name' => ucwords(str_replace('_', ' ', $column)),
+                'full_path' => "{$tableName}.{$column}"
+            ];
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Get meta table name based on main table name
+     */
+    private function getMetaTableName($mainTableName)
+    {
+        // Convert plural to singular and add _metas
+        $singular = rtrim($mainTableName, 's');
+        return $singular . '_metas';
+    }
+
+    /**
+     * Get unique meta keys from meta table
+     */
+    private function getUniqueMetaKeys($metaTableName)
+    {
+        if (!Schema::hasTable($metaTableName)) {
+            return [];
+        }
+
+        try {
+            $metaKeys = DB::table($metaTableName)
+                ->select('meta_key')
+                ->distinct()
+                ->where('status', '!=', 'deleted')
+                ->orderBy('meta_key')
+                ->pluck('meta_key')
+                ->toArray();
+
+            return array_map(function ($key) use ($metaTableName) {
+                return [
+                    'key' => $key,
+                    'display_name' => ucwords(str_replace(['_', '/'], [' ', ' / '], $key)),
+                    'full_path' => "{$metaTableName}.meta_value->{$key}"
+                ];
+            }, $metaKeys);
+        } catch (\Exception $e) {
+            Log::error("Error getting unique meta keys from {$metaTableName}: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Parse response schema to extract available fields
+     */
+    private function parseResponseSchema($api)
+    {
+        try {
+            $metaValue = json_decode($api->meta_value, true);
+
+            if (!isset($metaValue['response_schema'])) {
+                return [];
+            }
+
+            $responseSchema = $metaValue['response_schema'];
+            $fieldPaths = [];
+
+            $this->extractFieldPaths($responseSchema, '', $fieldPaths);
+            sort($fieldPaths);
+
+            return $fieldPaths;
+        } catch (\Exception $e) {
+            Log::error('Error parsing response schema: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Recursively extract field paths from response schema
+     */
+    private function extractFieldPaths($schema, $currentPath = '', &$fieldPaths = [], $maxDepth = 10)
+    {
+        if ($maxDepth <= 0) return;
+
+        if (!is_array($schema) && !is_object($schema)) {
+            if ($currentPath) {
+                $fieldPaths[] = $currentPath;
+            }
+            return;
+        }
+
+        if (is_array($schema) && isset($schema[0]) && is_array($schema[0])) {
+            $this->extractFieldPaths($schema[0], $currentPath, $fieldPaths, $maxDepth - 1);
+            return;
+        }
+
+        foreach ($schema as $key => $value) {
+            $newPath = $currentPath ? "{$currentPath}/{$key}" : $key;
+
+            if (is_array($value) || is_object($value)) {
+                $this->extractFieldPaths($value, $newPath, $fieldPaths, $maxDepth - 1);
+            } else {
+                $fieldPaths[] = $newPath;
+            }
+        }
+    }
+
+    /**
+     * Get existing field mappings from organisation_integration_metas
+     */
+    private function getExistingMappings($apiId, $organisationId, $integrationId)
+    {
+        try {
+            // Get the API record to extract API name
+            $api = IntegrationMeta::findOrFail($apiId);
+            $parts = explode('_', $api->meta_key, 2);
+            $apiName = $parts[1] ?? $api->meta_key;
+
+            // Get the parent integration record
+            $parentIntegration = OrganisationIntegration::where([
+                'organisation_id' => $organisationId,
+                'integration_masterdata_id' => $integrationId
+            ])->first();
+
+            if (!$parentIntegration) {
+                return [];
+            }
+
+            // Get the table name from request or use default
+            $tableName = request()->get('table_name', 'persons');
+            $metaKey = $apiName . '_' . $tableName . '_conf';
+
+            // Get the organisation integration meta record
+            $orgIntegrationMeta = OrganisationIntegrationMeta::where([
+                'ref_parent' => $parentIntegration->id,
+                'meta_key' => $metaKey
+            ])->first();
+
+            if (!$orgIntegrationMeta) {
+                return [];
+            }
+
+            $metaValue = json_decode($orgIntegrationMeta->meta_value, true);
+            $mappings = [];
+
+            if (isset($metaValue[$tableName])) {
+                foreach ($metaValue[$tableName] as $field => $mappingData) {
+                    // Reconstruct the full field path
+                    $fullFieldPath = $tableName . '.' . $field;
+
+                    $mappings[$fullFieldPath] = [
+                        'project_field' => $fullFieldPath,
+                        'project_field_label' => ucwords(str_replace('_', ' ', $field)),
+                        'response_field' => $mappingData['res_path'] ?? '',
+                    ];
+                }
+            }
+
+            return $mappings;
+        } catch (\Exception $e) {
+            Log::error('Error getting existing field mappings: ' . $e->getMessage());
+            return [];
+        }
+    }
+    
+    /**
+     * Parse body schema to extract required and optional fields
+     */
+    private function parseBodySchema($api)
+    {
+        try {
+            $metaValue = json_decode($api->meta_value, true);
+
+            if (!isset($metaValue['body_schema'])) {
+                return ['required' => [], 'optional' => []];
+            }
+
+            $bodySchema = $metaValue['body_schema'];
+            $requiredKeys = $metaValue['req_schema_required_keys'] ?? [];
+            
+            $requiredFields = [];
+            $optionalFields = [];
+            
+            $this->extractBodyFieldPaths($bodySchema, '', $requiredFields, $optionalFields, $requiredKeys);
+            
+            sort($requiredFields);
+            sort($optionalFields);
+
+            return [
+                'required' => $requiredFields,
+                'optional' => $optionalFields
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error parsing body schema: ' . $e->getMessage());
+            return ['required' => [], 'optional' => []];
+        }
+    }
+
+    /**
+     * Recursively extract body field paths from body schema
+     */
+    private function extractBodyFieldPaths($schema, $currentPath = '', &$requiredFields = [], &$optionalFields = [], $requiredKeys = [], $maxDepth = 10)
+    {
+        if ($maxDepth <= 0) return;
+
+        if (!is_array($schema) && !is_object($schema)) {
+            if ($currentPath) {
+                $isRequired = in_array($currentPath, $requiredKeys);
+                if ($isRequired) {
+                    $requiredFields[] = $currentPath;
+                } else {
+                    $optionalFields[] = $currentPath;
+                }
+            }
+            return;
+        }
+
+        if (is_array($schema) && isset($schema[0]) && is_array($schema[0])) {
+            $this->extractBodyFieldPaths($schema[0], $currentPath, $requiredFields, $optionalFields, $requiredKeys, $maxDepth - 1);
+            return;
+        }
+
+        foreach ($schema as $key => $value) {
+            $newPath = $currentPath ? "{$currentPath}/{$key}" : $key;
+
+            if (is_array($value) || is_object($value)) {
+                $this->extractBodyFieldPaths($value, $newPath, $requiredFields, $optionalFields, $requiredKeys, $maxDepth - 1);
+            } else {
+                $isRequired = in_array($newPath, $requiredKeys);
+                if ($isRequired) {
+                    $requiredFields[] = $newPath;
+                } else {
+                    $optionalFields[] = $newPath;
+                }
+            }
+        }
+    }
+
+    /**
+     * Get existing body field mappings
+     */
+    private function getExistingBodyMappings($apiId, $organisationId, $integrationId, $tableName)
+    {
+        try {
+            // Get the API record to extract API name
+            $api = IntegrationMeta::findOrFail($apiId);
+            $parts = explode('_', $api->meta_key, 2);
+            $apiName = $parts[1] ?? $api->meta_key;
+
+            // Get the parent integration record
+            $parentIntegration = OrganisationIntegration::where([
+                'organisation_id' => $organisationId,
+                'integration_masterdata_id' => $integrationId
+            ])->first();
+
+            if (!$parentIntegration) {
+                return [];
+            }
+
+            $metaKey = $apiName . '_' . $tableName . '_req';
+
+            // Get the organisation integration meta record
+            $orgIntegrationMeta = OrganisationIntegrationMeta::where([
+                'ref_parent' => $parentIntegration->id,
+                'meta_key' => $metaKey
+            ])->first();
+
+            if (!$orgIntegrationMeta) {
+                return [];
+            }
+
+            $metaValue = json_decode($orgIntegrationMeta->meta_value, true);
+            $mappings = [];
+
+            if (isset($metaValue[$tableName])) {
+                foreach ($metaValue[$tableName] as $field => $mappingData) {
+                    $mappings[$field] = [
+                        'body_field' => $field,
+                        'body_field_label' => ucwords(str_replace(['_', '/'], ' ', $field)),
+                        'project_field' => $mappingData['proj_path'] ?? '',
+                    ];
+                }
+            }
+
+            return $mappings;
+        } catch (\Exception $e) {
+            Log::error('Error getting existing body field mappings: ' . $e->getMessage());
+            return [];
+        }
+    }
+}

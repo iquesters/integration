@@ -6,11 +6,11 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Iquesters\Integration\Models\Integration;
 use Iquesters\Integration\Models\OrganisationIntegration;
+use Iquesters\Integration\Models\OrganisationIntegrationMeta;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Client;
 use Iquesters\Integration\Models\IntegrationMeta;
-use Iquesters\Integration\Models\OrganisationIntegrationMeta;
 
 class IntegrationController extends Controller
 {
