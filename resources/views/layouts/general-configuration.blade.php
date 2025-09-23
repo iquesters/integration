@@ -11,14 +11,14 @@
                 'label' => 'Overview',
                 // 'permission' => 'view-roles'
             ],
-            // [
-            //     'id' => 'data',
-            //     'route' => 'roles.permissions',
-            //     'params' => ['organisationUid' => $organisation->uid, 'integrationUid' => $application->uid],
-            //     'icon' => 'fas fa-shield-alt',
-            //     'label' => 'Permissions',
-            //     // 'permission' => 'view-roles'
-            // ],
+            [
+                'id' => 'data',
+                'route' => 'organisations.integration.data',
+                'params' => ['organisationUid' => $organisation->uid, 'integrationUid' => $application->uid],
+                'icon' => 'fas fa-layer-group',
+                'label' => 'Data',
+                // 'permission' => 'view-roles'
+            ],
         ],
         'baseRoute' => 'organisations.integration.show',
         'baseRouteParams' => ['organisationUid' => $organisation->uid, 'integrationUid' => $application->uid],

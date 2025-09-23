@@ -53,6 +53,9 @@
                         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#organisationIdModal">
                             5. Organisation ID
                         </button>
+                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#saveEntityModal">
+                            6. Save Entity
+                        </button>
                     </div>
                 </div>
                 <div class="row row-cols-1 row-cols-md-1 g-2">
@@ -195,16 +198,13 @@
                 <hr>
                 <div class="d-flex align-items-center justify-content-start gap-2">
                     <h5 class="fs-6 text-muted">Project Entity for Mapping</h5>
-                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#saveEntityModal">
-                        Save Entity
-                    </button>
                 </div>
 
                 @if (!empty($existingEntityConfig))
                     <div class="">
                         <small class="text-muted">
-                            <strong>Entities:</strong> {{ $existingEntityConfig['entity_names'] ?? '—' }} <br>
-                            <strong>Default Entity:</strong> {{ $existingEntityConfig['default_entity'] ?? '—' }}
+                            Entities: {{ $existingEntityConfig['entity_names'] ?? '—' }} <br>
+                            Default Entity: {{ $existingEntityConfig['default_entity'] ?? '—' }}
                         </small>
                     </div>
                 @endif
@@ -487,7 +487,7 @@
             <form action="{{ route('organisations.integration.save-entity-configuration', [$organisation->uid, $application->uid]) }}" method="POST">
                 @csrf
                 <div class="modal-header">
-                    <h5 class="modal-title fs-6">Save Project Entity for Mapping with APIs</h5>
+                    <h5 class="modal-title fs-6">Step 6: Save Project Entity for Mapping with APIs</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">

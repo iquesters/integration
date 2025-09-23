@@ -965,5 +965,95 @@ class IntegrationController extends Controller
             return redirect()->back()->with('error', 'Failed to save entity configuration.');
         }
     }
-    
+
+    public function showZohoBooksData($organisationUid, $integrationUid)
+    {
+        // ✅ Resolve Organisation
+        $organisation = null;
+        if (class_exists(\Iquesters\Organisation\Models\Organisation::class)) {
+            $organisation = \Iquesters\Organisation\Models\Organisation::where('uid', $organisationUid)->firstOrFail();
+        }
+
+        if (!$organisation) {
+            // Fallback dummy organisation
+            $organisation = new class {
+                public $id = 1;
+                public $uid;
+                public $name = 'Default Organisation';
+            };
+            $organisation->uid = $organisationUid;
+        }
+
+        // ✅ Resolve Integration
+        $zohoIntegration = Integration::where('uid', $integrationUid)->firstOrFail();
+        $zohoIntegrationUid = $zohoIntegration->uid;
+
+        $orgIntegration = OrganisationIntegration::where('organisation_id', $organisation->id)
+            ->where('integration_masterdata_id', $zohoIntegration->id)
+            ->first();
+
+        $apiMetaId = null;
+        $apiId = [];
+
+        // ✅ Fetch configured API meta IDs
+        if ($orgIntegration) {
+            $meta = OrganisationIntegrationMeta::where('ref_parent', $orgIntegration->id)
+                ->where('meta_key', 'ZB_api_id')
+                ->first();
+
+            if ($meta && $meta->meta_value) {
+                $configuredApiIds = json_decode($meta->meta_value, true);
+
+                if (is_array($configuredApiIds)) {
+                    // Fetch api_list_contacts
+                    $apiList = IntegrationMeta::whereIn('id', $configuredApiIds)
+                        ->where('meta_key', 'api_list_contacts')
+                        ->first();
+
+                    if ($apiList) {
+                        $apiMetaId = $apiList->id;
+                        $apiId[] = $apiList->id;
+                    }
+
+                    // Fetch api_create_a_contact
+                    $apiCreate = IntegrationMeta::whereIn('id', $configuredApiIds)
+                        ->where('meta_key', 'api_create_a_contact')
+                        ->first();
+
+                    if ($apiCreate) {
+                        $apiId[] = $apiCreate->id;
+                    }
+                }
+            }
+        }
+
+        $hasConfMeta = false;
+        $entityName = null;
+
+        // ✅ Extract entity name from list_contacts_*_conf meta
+        if ($orgIntegration) {
+            $confMeta = OrganisationIntegrationMeta::where('ref_parent', $orgIntegration->id)
+                ->where('meta_key', 'like', 'list_contacts%_conf')
+                ->first();
+
+            if ($confMeta) {
+                $hasConfMeta = true;
+
+                // Extract entity name from meta_key
+                if (preg_match('/^list_contacts_(.*)_conf$/', $confMeta->meta_key, $matches)) {
+                    $entityName = $matches[1];
+                }
+            }
+        }
+
+        return view('integration::integrations.zoho_books.data', [
+            'organisation'       => $organisation,
+            'zohoIntegrationUid' => $zohoIntegrationUid,
+            'application'        => $zohoIntegration,
+            'apiMetaId'          => $apiMetaId,
+            'apiIds'             => $apiId,
+            'hasConfMeta'        => $hasConfMeta,
+            'entityName'         => $entityName,
+        ]);
+    }
 }
