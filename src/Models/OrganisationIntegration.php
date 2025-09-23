@@ -33,7 +33,7 @@ class OrganisationIntegration extends Model
     // Link to meta records
     public function metas()
     {
-        return $this->hasMany(IntegrationMeta::class, 'ref_parent');
+        return $this->hasMany(OrganisationIntegrationMeta::class, 'ref_parent');
     }
 
     // Get meta value by key

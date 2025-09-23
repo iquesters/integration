@@ -28,10 +28,10 @@
                         </div>
                         <div class="d-flex flex-column align-items-end justify-content-center">
                             @if ($isActive)
-                                {{-- <a href="{{ route('organisations.integration.show', ['organisationUid' => $organisation->uid, 'integrationUid' => $application->uid]) }}" class="btn btn-text text-primary btn-sm mb-1">
+                                <a href="{{ route('organisations.integration.show', ['organisationUid' => $organisation->uid, 'integrationUid' => $application->uid]) }}" class="btn btn-text text-primary btn-sm mb-1">
                                     <i class="fas fa-cog"></i>
                                     Configure
-                                </a> --}}
+                                </a>
                             @endif
                             <div class="form-check form-switch @cannot('edit-organisations-integrations') disabled @endcannot" @cannot('edit-organisations-integrations') disabled @endcannot>
                                 <input class="form-check-input toggle-switch" 
