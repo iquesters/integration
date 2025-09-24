@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Iquesters\Integration\Http\Controllers\ApiConfigurationController;
 use Iquesters\Integration\Http\Controllers\IntegrationController;
 use Iquesters\Integration\Http\Controllers\IntApiCallContactController;
+use Iquesters\Integration\Http\Controllers\IntApiResponseMatchingContactController;
 
 Route::middleware('web')->group(function () {
     Route::prefix('Organisation')->name('organisations.')->group(function () {
@@ -22,6 +23,8 @@ Route::middleware('web')->group(function () {
                 Route::get('/{integrationUid}/api/{apiId}/configure', [ApiConfigurationController::class, 'apiConfigure'])->name('api.configure');
                 Route::post('/{integrationUid}/api/{apiId}/save-configuration', [ApiConfigurationController::class, 'saveFieldMappings'])->name('api.save-configuration');
                 Route::post('/{integrationUid}/api/{apiId}/{entityName}/api-call', [IntApiCallContactController::class, 'apiCall'])->name('api.api-call');
+
+                Route::get('/{integrationUid}/api/{apiIds}/{entityName}/org-entity-list', [IntApiResponseMatchingContactController::class, 'entityList'])->name('api.entity-list');
             });
         });
     });

@@ -1027,22 +1027,17 @@ class IntegrationController extends Controller
             }
         }
 
-        $hasConfMeta = false;
+        $hasConfMeta = null;
         $entityName = null;
 
-        // ✅ Extract entity name from list_contacts_*_conf meta
         if ($orgIntegration) {
             $confMeta = OrganisationIntegrationMeta::where('ref_parent', $orgIntegration->id)
                 ->where('meta_key', 'like', 'list_contacts%_conf')
                 ->first();
 
-            if ($confMeta) {
-                $hasConfMeta = true;
-
-                // Extract entity name from meta_key
-                if (preg_match('/^list_contacts_(.*)_conf$/', $confMeta->meta_key, $matches)) {
-                    $entityName = $matches[1];
-                }
+            if ($confMeta && preg_match('/^list_contacts_(.*)_conf$/', $confMeta->meta_key, $matches)) {
+                $entityName   = $matches[1];
+                $hasConfMeta  = $entityName; // store the actual name instead of true/false
             }
         }
 
@@ -1053,7 +1048,7 @@ class IntegrationController extends Controller
             'apiMetaId'          => $apiMetaId,
             'apiIds'             => $apiId,
             'hasConfMeta'        => $hasConfMeta,
-            'entityName'         => $entityName,
+            'entityName'         => $entityName
         ]);
     }
 }
