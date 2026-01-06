@@ -25,6 +25,7 @@ Route::middleware('web')->group(function () {
                 Route::post('/{integrationUid}/api/{apiId}/{entityName}/api-call', [IntApiCallContactController::class, 'apiCall'])->name('api.api-call');
 
                 Route::get('/{integrationUid}/api/{apiIds}/{entityName}/org-entity-list', [IntApiResponseMatchingContactController::class, 'entityList'])->name('api.entity-list');
+                Route::get('/{integrationUid}/api/{apiIds}/{entityName}/{entityId}', [IntApiResponseMatchingContactController::class, 'matchedEntityDisplay'])->name('api.matched-entity-display');
             });
         });
     });

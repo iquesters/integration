@@ -17,9 +17,10 @@
                     @forelse($availableEntity as $entity)
                         <tr>
                             <td>{{ $entity->name ?? 'N/A' }}</td>
+
                             <td>
                                 {{-- @if(isset($organisation) && $organisation) --}}
-                                <a href="{{ route('organisations.persons.api.matched-person-display', [$organisation->uid, $integrationUid, $apiId, $entityName, $entity->uid]) }}"
+                                <a href="{{ route('organisations.integration.api.matched-entity-display', [$organisation->uid, $integrationUid, $apiId, $entityName, $entity->id]) }}"
                                     class="btn btn-sm btn-outline-primary">
                                     Find Match
                                 </a>
