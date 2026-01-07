@@ -11,76 +11,55 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Client;
 use Iquesters\Integration\Models\IntegrationMeta;
+use Iquesters\Integration\Models\SupportedIntegration;
 
 class IntegrationController extends Controller
 {
     /**
      * Display all integrations with their meta data.
      */
-    public function index($organisationUid)
-    {
-        $organisation = null;
+    public function index()
+{
+    $user = Auth::user();
 
-        // Use real Organisation model if available
-        if (class_exists(\Iquesters\Organisation\Models\Organisation::class)) {
-            $organisation = \Iquesters\Organisation\Models\Organisation::where('uid', $organisationUid)->first();
-        }
-
-        // Fallback dummy organisation if not available
-        if (!$organisation) {
-            $organisation = new class {
-                public $id = 1;
-                public $uid;
-                public $name = 'Default Organisation';
-
-                // Check if this integration is active in the DB
-                public function hasActiveIntegration($integrationId)
-                {
-                    return OrganisationIntegration::where('organisation_id', $this->id)
-                        ->where('integration_masterdata_id', $integrationId)
-                        ->where('status', 'active')
-                        ->exists();
-                }
-
-                public function organisationIntegrations()
-                {
-                    $orgId = $this->id;
-
-                    return new class($orgId) {
-                        private $orgId;
-                        public function __construct($id)
-                        {
-                            $this->orgId = $id;
-                        }
-
-                        public function where($col, $val)
-                        {
-                            $this->integrationId = $val;
-                            return $this;
-                        }
-
-                        public function first()
-                        {
-                            return OrganisationIntegration::where('organisation_id', $this->orgId)
-                                ->where('integration_masterdata_id', $this->integrationId)
-                                ->first();
-                        }
-
-                        public function create(array $data)
-                        {
-                            $data['organisation_id'] = $this->orgId;
-                            return OrganisationIntegration::create($data);
-                        }
-                    };
-                }
-            };
-            $organisation->uid = $organisationUid;
-        }
-
-        $applicationNames = Integration::where('status', 'active')->get();
-
-        return view('integration::integrations.index', compact('organisation', 'applicationNames'));
+    if (!$user) {
+        abort(401);
     }
+
+    // Default: no organisations
+    $organisationIds = collect();
+
+    // Only fetch organisations if the method exists
+    if (method_exists($user, 'organisations')) {
+        $organisationIds = $user
+            ->organisations()
+            ->pluck('organisations.id');
+    }
+
+    // Get active integrations (user + organisation)
+    $integrations = Integration::query()
+        ->where('status', 'active')
+        ->where(function ($query) use ($user, $organisationIds) {
+
+            // User-owned integrations
+            $query->where('user_id', $user->id);
+
+            // Organisation-owned integrations (only if applicable)
+            if ($organisationIds->isNotEmpty()) {
+                $query->orWhereIn('organisation_id', $organisationIds);
+            }
+        })
+        ->with(['supportedIntegration', 'metas'])
+        ->get();
+
+    // Supported integration master list
+    $supportedIntegrations = SupportedIntegration::where('status', 'active')->get();
+
+    return view(
+        'integration::integrations.index',
+        compact('integrations', 'supportedIntegrations')
+    );
+}
 
     /**
      * Toggle integration for an organisation (activate / deactivate)

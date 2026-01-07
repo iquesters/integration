@@ -6,9 +6,9 @@ use Iquesters\Integration\Http\Controllers\IntegrationController;
 use Iquesters\Integration\Http\Controllers\IntApiCallContactController;
 use Iquesters\Integration\Http\Controllers\IntApiResponseMatchingContactController;
 
-Route::middleware('web')->group(function () {
-    Route::prefix('Organisation')->name('organisations.')->group(function () {
-        Route::prefix('{organisationUid}')->group(function () {
+Route::middleware(['web','auth'])->group(function () {
+    // Route::prefix('Organisation')->name('organisations.')->group(function () {
+        // Route::prefix('{organisationUid}')->group(function () {
             Route::prefix('integrations')->name('integration.')->group(function () {
                 Route::get('/', [IntegrationController::class, 'index'])->name('index');
                 Route::post('/{integrationId}/toggle', [IntegrationController::class, 'toggleIntegration'])->name('toggle');
@@ -27,6 +27,6 @@ Route::middleware('web')->group(function () {
                 Route::get('/{integrationUid}/api/{apiIds}/{entityName}/org-entity-list', [IntApiResponseMatchingContactController::class, 'entityList'])->name('api.entity-list');
                 Route::get('/{integrationUid}/api/{apiIds}/{entityName}/{entityId}', [IntApiResponseMatchingContactController::class, 'matchedEntityDisplay'])->name('api.matched-entity-display');
             });
-        });
-    });
+    //     });
+    // });
 });

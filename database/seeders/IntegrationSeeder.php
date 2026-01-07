@@ -2,7 +2,7 @@
 
 namespace Iquesters\Integration\Database\Seeders;
 
-use Iquesters\Integration\Models\Integration;
+use Iquesters\Integration\Models\SupportedIntegration;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -136,7 +136,7 @@ class IntegrationSeeder extends Seeder
                 $fileStats['updated']++;
             } else {
                 // Create new record
-                $record = Integration::create([
+                $record = SupportedIntegration::create([
                     'uid' => (string) Str::ulid(),
                     'name' => $item['name'],
                     'small_name' => $item['small_name'] ?? '',
@@ -217,7 +217,7 @@ class IntegrationSeeder extends Seeder
     protected function processMetaData(string $integrationName, array $data, &$fileStats = [])
     {
         // Find the integration
-        $integration = Integration::where('name', $integrationName)->first();
+        $integration = SupportedIntegration::where('name', $integrationName)->first();
 
         if (!$integration) {
             $this->command->warn("    Integration '{$integrationName}' not found. Skipping meta data.");
@@ -259,10 +259,10 @@ class IntegrationSeeder extends Seeder
     /**
      * Find record by name, using cache to avoid duplicate database queries
      */
-    private function findOrCacheRecord(string $name): ?Integration
+    private function findOrCacheRecord(string $name): ?SupportedIntegration
     {
         if (!isset($this->processedRecords[$name])) {
-            $this->processedRecords[$name] = Integration::where('name', $name)->first();
+            $this->processedRecords[$name] = SupportedIntegration::where('name', $name)->first();
         }
 
         return $this->processedRecords[$name];

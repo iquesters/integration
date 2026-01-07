@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('ext_integrations', function (Blueprint $table) {
             $table->id();
             $table->ulid('uid')->unique();
-            $table->foreignId('org_inte_id')->constrained('organisation_integration_metas')->onDelete('cascade');
+            $table->foreignId('org_inte_id')->constrained('integration_metas')->onDelete('cascade');
             $table->string('ext_id');
             $table->string('status')->default('unknown');
             $table->bigInteger('created_by')->default(0);

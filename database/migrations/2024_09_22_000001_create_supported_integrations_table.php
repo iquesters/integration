@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('integrations', function (Blueprint $table) {
+        Schema::create('supported_integrations', function (Blueprint $table) {
             $table->id();
             $table->ulid('uid')->unique();
             $table->string('name');
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('integration_metas', function (Blueprint $table) {
+        Schema::create('supported_integration_metas', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('ref_parent')->unsigned()->nullable();
             $table->string('meta_key');
@@ -32,7 +32,7 @@ return new class extends Migration
             $table->bigInteger('created_by')->default(0);
             $table->bigInteger('updated_by')->default(0);
             $table->timestamps();
-            $table->foreign('ref_parent')->references('id')->on('integrations')->onDelete('cascade')->onUpdate('cascade');
+            $table->foreign('ref_parent')->references('id')->on('supported_integrations')->onDelete('cascade')->onUpdate('cascade');
         });
     }
 
@@ -41,7 +41,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('integration_metas');
-        Schema::dropIfExists('integrations');
+        Schema::dropIfExists('supported_integration_metas');
+        Schema::dropIfExists('supported_integrations');
     }
 };

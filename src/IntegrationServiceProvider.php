@@ -3,14 +3,17 @@
 namespace Iquesters\Integration;
 
 use Illuminate\Support\ServiceProvider;
+use Iquesters\Foundation\Support\ConfProvider;
 use Illuminate\Console\Command;
+use Iquesters\Foundation\Enums\Module;
+use Iquesters\SmartMessenger\Config\IntegrationConf;
 use Iquesters\Integration\Database\Seeders\IntegrationSeeder;
 
 class IntegrationServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__ . '/../config/integration.php', 'integration');
+        ConfProvider::register(Module::INTEGRATION, IntegrationConf::class);
 
         // Register the seed command
         $this->registerSeedCommand();

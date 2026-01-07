@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class IntegrationMeta extends Model
 {
     use HasFactory;
+    
+    protected $table = 'integration_metas';
 
     protected $fillable = [
         'ref_parent',
@@ -15,11 +17,11 @@ class IntegrationMeta extends Model
         'meta_value',
         'status',
         'created_by',
-        'updated_by',
+        'updated_by'
     ];
 
     /**
-     * Meta belongs to a single integration.
+     * Get the integration this meta belongs to
      */
     public function integration()
     {
