@@ -19,47 +19,47 @@ class IntegrationController extends Controller
      * Display all integrations with their meta data.
      */
     public function index()
-{
-    $user = Auth::user();
+    {
+        $user = Auth::user();
 
-    if (!$user) {
-        abort(401);
+        if (!$user) {
+            abort(401);
+        }
+
+        // Default: no organisations
+        $organisationIds = collect();
+
+        // Only fetch organisations if the method exists
+        if (method_exists($user, 'organisations')) {
+            $organisationIds = $user
+                ->organisations()
+                ->pluck('organisations.id');
+        }
+
+        // Get active integrations (user + organisation)
+        $integrations = Integration::query()
+            ->where('status', 'active')
+            ->where(function ($query) use ($user, $organisationIds) {
+
+                // User-owned integrations
+                $query->where('user_id', $user->id);
+
+                // Organisation-owned integrations (only if applicable)
+                if ($organisationIds->isNotEmpty()) {
+                    $query->orWhereIn('organisation_id', $organisationIds);
+                }
+            })
+            ->with(['supportedIntegration', 'metas'])
+            ->get();
+
+        // Supported integration master list
+        $supportedIntegrations = SupportedIntegration::where('status', 'active')->get();
+
+        return view(
+            'integration::integrations.index',
+            compact('integrations', 'supportedIntegrations')
+        );
     }
-
-    // Default: no organisations
-    $organisationIds = collect();
-
-    // Only fetch organisations if the method exists
-    if (method_exists($user, 'organisations')) {
-        $organisationIds = $user
-            ->organisations()
-            ->pluck('organisations.id');
-    }
-
-    // Get active integrations (user + organisation)
-    $integrations = Integration::query()
-        ->where('status', 'active')
-        ->where(function ($query) use ($user, $organisationIds) {
-
-            // User-owned integrations
-            $query->where('user_id', $user->id);
-
-            // Organisation-owned integrations (only if applicable)
-            if ($organisationIds->isNotEmpty()) {
-                $query->orWhereIn('organisation_id', $organisationIds);
-            }
-        })
-        ->with(['supportedIntegration', 'metas'])
-        ->get();
-
-    // Supported integration master list
-    $supportedIntegrations = SupportedIntegration::where('status', 'active')->get();
-
-    return view(
-        'integration::integrations.index',
-        compact('integrations', 'supportedIntegrations')
-    );
-}
 
     /**
      * Toggle integration for an organisation (activate / deactivate)

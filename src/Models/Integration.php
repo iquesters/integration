@@ -18,12 +18,16 @@ class Integration extends Model
      * Mass-assignable attributes.
      */
     protected $fillable = [
+        'uid',
+        'name',
         'user_id',
         'supported_integration_id',
         'status',
+        'is_default',
         'created_by',
         'updated_by',
     ];
+
 
     /**
      * Get the supported (master) integration definition.

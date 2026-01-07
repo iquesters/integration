@@ -1,80 +1,103 @@
 @extends('userinterface::layouts.app')
 
 @section('content')
-<div>
-    <div class="mb-3">
-        <h5 class="fs-6 text-muted">
-            Integrations
-        </h5>
+{{-- ===================== --}}
+{{-- Connected Integrations --}}
+{{-- ===================== --}}
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="fs-6 text-muted">Total {{ $integrations->count() }} Integration(s)</h5>
+
+        <a href="#" class="btn btn-sm btn-outline-primary">
+            <i class="fa-regular fa-fw fa-plus"></i>
+            <span class="d-none d-md-inline-block ms-1">Integration</span>
+        </a>
     </div>
 
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-2">
-        @foreach ($supportedIntegrations as $application)
+    <div class="table-responsive">
+        <table class="table table-striped table-hover" id="integrations-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
 
-            @php
-                $integration = $integrations
-                    ->firstWhere('supported_integration_id', $application->id);
+            <tbody>
+                @foreach ($integrations as $integration)
+                    <tr>
+                        <td>
+                            {{ $integration->supportedIntegration->name ?? '-' }}
+                        </td>
 
-                $isActive = (bool) $integration;
-            @endphp
+                        <td>
+                            {{ $integration->organisation->name
+                                ?? $integration->user->name
+                                ?? 'Personal' }}
+                        </td>
 
-            <div class="col d-flex">
-                <div class="shadow-sm border border-slate-300 rounded p-2 w-100 d-flex flex-column">
-
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <div>
-                                <h5 class="fs-6 mb-0">
-                                    {{ $application->name }}
-                                </h5>
-                                <small class="text-muted">
-                                    Status Summary
-                                </small>
-                            </div>
-
-                            <span class="badge ms-2 badge-{{ $isActive ? 'active' : 'draft' }}">
-                                {{ $isActive ? 'Active' : 'Inactive' }}
+                        <td>
+                            <span class="badge badge-active">
+                                Active
                             </span>
-                        </div>
+                        </td>
 
-                        <div class="d-flex flex-column align-items-end justify-content-center">
-                            @if ($isActive)
-                                <a
-                                    href="{{ route('integrations.show', $integration->id) }}"
-                                    class="btn btn-text text-primary btn-sm mb-1"
-                                >
-                                    <i class="fas fa-cog"></i>
-                                    Configure
-                                </a>
-                            @endif
-
-                            <div class="form-check form-switch
-                                @cannot('edit-integrations') disabled @endcannot">
-                                <input
-                                    class="form-check-input toggle-switch"
-                                    type="checkbox"
-                                    id="integration-{{ $application->id }}"
-                                    data-item-id="{{ $application->id }}"
-                                    data-item-uid="{{ $application->uid }}"
-                                    data-item-name="{{ $application->name }}"
-                                    {{ $isActive ? 'checked' : '' }}
-                                    @cannot('edit-integrations') disabled @endcannot
-                                >
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <div class="card-design-body">
-                        <p class="text-muted mb-0">
-                            {{ $application->getMeta('description') ?? 'No description available' }}
-                        </p>
-                    </div>
-
-                </div>
-            </div>
-        @endforeach
+                        <td>
+                            <a
+                                href="{{ route('integrations.show', $integration->id) }}"
+                                class="btn btn-sm btn-primary"
+                            >
+                                Configure
+                            </a>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
     </div>
 </div>
+
+{{-- ===================== --}}
+{{-- Supported Integrations --}}
+{{-- ===================== --}}
+<div class="mb-3">
+    <h5 class="fs-6 text-muted">
+        Supported Integrations
+    </h5>
+</div>
+
+<div class="row g-3">
+    @foreach ($supportedIntegrations as $application)
+
+        @php
+            $icon = $application->getMeta('icon')
+                ?? '<i class="fa-brands fa-whatsapp"></i>';
+        @endphp
+
+        <x-userinterface::card-item
+            type="integration"
+            :key="Str::slug($application->name)" {{-- woocommerce --}}
+            :title="$application->name"
+            :description="$application->getMeta('description') ?? 'No description available'"
+            :icon="$icon"
+        >
+            <a href="#" class="btn btn-sm btn-outline-primary">
+                <i class="fa fa-plus me-1"></i> Integration
+            </a>
+        </x-userinterface::card-item>
+
+    @endforeach
+</div>
 @endsection
+
+@push('scripts')
+<script>
+    $(function () {
+        $('#integrations-table').DataTable({
+            responsive: true
+        });
+    });
+</script>
+@endpush
