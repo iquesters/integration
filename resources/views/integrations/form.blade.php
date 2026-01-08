@@ -83,7 +83,12 @@
                     <option value="">-- Select Organisation --</option>
                     @foreach($organisations as $org)
                         <option value="{{ $org->id }}"
-                            {{ old('organisation_id', $sessionData['organisation_id'] ?? optional($integration->organisations->first())->id ?? '') == $org->id ? 'selected' : '' }}>
+                            {{ old(
+                                'organisation_id',
+                                $sessionData['organisation_id']
+                                    ?? optional(optional($integration)->organisations)->first()?->id
+                            ) == $org->id ? 'selected' : '' }}
+                            >
                             {{ $org->name }}
                         </option>
                     @endforeach
@@ -103,7 +108,7 @@
                    name="meta[url]"
                    class="form-control"
                    placeholder="https://api.example.com"
-                   value="{{ old('meta.url', $integration->getMeta('url') ?? '') }}"
+                   value="{{ old('meta.url', optional($integration)->getMeta('url') ?? '') }}"
                    required>
         </div>
 
@@ -112,7 +117,7 @@
             <input type="text"
                    name="meta[client_key]"
                    class="form-control"
-                   value="{{ old('meta.client_key', $integration->getMeta('client_key') ?? '') }}"
+                   value="{{ old('meta.client_key', optional($integration)->getMeta('client_key') ?? '') }}"
                    required>
         </div>
 
@@ -121,7 +126,7 @@
             <textarea name="meta[client_token]"
                       class="form-control"
                       rows="3"
-                      required>{{ old('meta.client_token', $integration->getMeta('client_token') ?? '') }}</textarea>
+                      required>{{ old('meta.client_token', optional($integration)->getMeta('client_token') ?? '') }}</textarea>
         </div>
     </div>
     @endif

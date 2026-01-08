@@ -6,7 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Iquesters\Foundation\Support\ConfProvider;
 use Illuminate\Console\Command;
 use Iquesters\Foundation\Enums\Module;
-use Iquesters\SmartMessenger\Config\IntegrationConf;
+use Iquesters\Integration\Config\IntegrationConf;
 use Iquesters\Integration\Database\Seeders\IntegrationSeeder;
 
 class IntegrationServiceProvider extends ServiceProvider

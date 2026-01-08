@@ -1,6 +1,6 @@
 <?php
 
-namespace Iquesters\SmartMessenger\Config;
+namespace Iquesters\Integration\Config;
 
 use Iquesters\Foundation\Support\BaseConf;
 use Iquesters\Foundation\Enums\Module;
