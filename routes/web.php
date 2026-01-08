@@ -18,9 +18,10 @@ Route::middleware(['web','auth'])->group(function () {
                 Route::post('/{integrationUid}/edit/step1', [IntegrationController::class, 'updateStep1'])->name('update-step1');
                 Route::put('/{integrationUid}', [IntegrationController::class, 'update'])->name('update');
                 Route::delete('/{integrationUid}', [IntegrationController::class, 'destroy'])->name('destroy');
+                Route::get('/{integrationUid}', [IntegrationController::class, 'show'])->name('show');
             
                 Route::post('/{integrationId}/toggle', [IntegrationController::class, 'toggleIntegration'])->name('toggle');
-                Route::get('/{integrationUid}/show', [IntegrationController::class, 'showZohoBooks'])->name('show');
+                Route::get('/{integrationUid}/show', [IntegrationController::class, 'showZohoBooks'])->name('show-zoho');
                 Route::get('/{integrationUid}/data', [IntegrationController::class, 'showZohoBooksData'])->name('data');
 
                 Route::post('/{integrationUid}/store', [IntegrationController::class, 'saveZohoBooksIntegration'])->name('zoho-books.store');

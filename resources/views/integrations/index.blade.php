@@ -30,7 +30,9 @@
                 @foreach ($integrations as $integration)
                     <tr>
                         <td>
-                            {{ $integration->name ?? '-' }}
+                            <a href="{{ route('integration.show', $integration->uid) }}" class="text-decoration-none">
+                                {{ $integration->name ?? '-' }}
+                            </a>
                             {!! $integration->supportedInt?->getMeta('icon') !!}
                             <br>
                             <small class="text-muted">{{ $integration->getMeta('url') ?? '' }}</small>

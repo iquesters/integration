@@ -457,6 +457,24 @@ class IntegrationController extends Controller
                 ->with('error', 'Unable to delete integration.');
         }
     }
+    
+    public function show($integrationUid)
+    {
+        try {
+            $integration = Integration::where('uid', $integrationUid)->with('metas')->firstOrFail();
+            
+            return view('integration::integrations.show', compact('integration'));
+            
+        } catch (\Throwable $e) {
+            Log::error('Integration Show Error', [
+                'integration_uid' => $integrationUid,
+                'error' => $e->getMessage()
+            ]);
+
+            return redirect()->route('integration.index')
+                ->with('error', 'Unable to load integration.');
+        }
+    }
 
     /**
      * Toggle integration for an organisation (activate / deactivate)
