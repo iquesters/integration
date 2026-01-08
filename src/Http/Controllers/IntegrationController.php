@@ -10,8 +10,11 @@ use Iquesters\Integration\Models\OrganisationIntegrationMeta;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Client;
+use Iquesters\Organisation\Models\Organisation;
+use Illuminate\Support\Str;
 use Iquesters\Integration\Models\IntegrationMeta;
 use Iquesters\Integration\Models\SupportedIntegration;
+use Illuminate\Validation\ValidationException;
 
 class IntegrationController extends Controller
 {
@@ -20,45 +23,439 @@ class IntegrationController extends Controller
      */
     public function index()
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        if (!$user) {
-            abort(401);
+            if (!$user) {
+                abort(401);
+            }
+
+            $organisationIds = collect();
+
+            // User may or may not support organisations
+            if (method_exists($user, 'organisations')) {
+                $organisationIds = $user
+                    ->organisations()
+                    ->pluck('organisations.id');
+            }
+
+            $integrations = Integration::query()
+                ->where(function ($query) use ($user, $organisationIds) {
+
+                    // Personal integrations
+                    $query->where('user_id', $user->id);
+
+                    // Organisation integrations (only if Integration supports it)
+                    if (
+                        $organisationIds->isNotEmpty() &&
+                        method_exists(Integration::class, 'organisations')
+                    ) {
+                        $query->orWhereHas('organisations', function ($q) use ($organisationIds) {
+                            $q->whereIn('organisations.id', $organisationIds);
+                        });
+                    }
+                })
+                ->with(array_filter([
+                    'supportedIntegration',
+                    'metas',
+                    'creator',
+                    method_exists(Integration::class, 'organisations') ? 'organisations' : null,
+                ]))
+                ->get();
+
+            $supportedIntegrations = SupportedIntegration::where('status', 'active')->get();
+
+            return view(
+                'integration::integrations.index',
+                compact('integrations', 'supportedIntegrations')
+            );
+
+        } catch (\Throwable $e) {
+
+            Log::error('Integration index error', [
+                'user_id' => Auth::id(),
+                'message' => $e->getMessage(),
+                'trace'   => $e->getTraceAsString(),
+            ]);
+
+            return redirect()
+                ->back()
+                ->with('error', 'Unable to load integrations at this time.');
         }
+    }
 
-        // Default: no organisations
-        $organisationIds = collect();
+    public function create()
+    {
+        try {
+            $step = request()->query('step', 1);
+            $integrationId = request()->query('supported_integration_id');
 
-        // Only fetch organisations if the method exists
-        if (method_exists($user, 'organisations')) {
-            $organisationIds = $user
-                ->organisations()
-                ->pluck('organisations.id');
-        }
+            // All supported integrations
+            $supportedIntegrations = SupportedIntegration::all();
 
-        // Get active integrations (user + organisation)
-        $integrations = Integration::query()
-            ->where('status', 'active')
-            ->where(function ($query) use ($user, $organisationIds) {
+            $selectedIntegration = null;
 
-                // User-owned integrations
-                $query->where('user_id', $user->id);
+            if ($integrationId) {
+                $selectedIntegration = $supportedIntegrations
+                    ->where('id', $integrationId)
+                    ->first();
 
-                // Organisation-owned integrations (only if applicable)
-                if ($organisationIds->isNotEmpty()) {
-                    $query->orWhereIn('organisation_id', $organisationIds);
+                if (!$selectedIntegration) {
+                    return redirect()
+                        ->route('integration.index')
+                        ->with('error', 'Invalid integration selected.');
                 }
-            })
-            ->with(['supportedIntegration', 'metas'])
-            ->get();
+            }
 
-        // Supported integration master list
-        $supportedIntegrations = SupportedIntegration::where('status', 'active')->get();
+            // Step 1 session data
+            $sessionData = session('integration_step1_data', []);
 
-        return view(
-            'integration::integrations.index',
-            compact('integrations', 'supportedIntegrations')
-        );
+            // Prevent skipping step 1
+            if ($step == 2 && empty($sessionData)) {
+                return redirect()
+                    ->route('integrations.create')
+                    ->with('error', 'Please complete Step 1 first.');
+            }
+
+            // Restore selected integration on step 2
+            if ($step == 2 && !empty($sessionData)) {
+                $selectedIntegration = $supportedIntegrations
+                    ->where('id', $sessionData['supported_integration_id'] ?? null)
+                    ->first();
+            }
+
+            $organisations = auth()->user()->organisations ?? collect();
+
+            return view('integration::integrations.form', [
+                'isEdit'                => false,
+                'integration'           => null,
+                'supportedIntegrations' => $supportedIntegrations,
+                'selectedIntegration'   => $selectedIntegration,
+                'organisations'         => $organisations,
+                'step'                  => $step,
+                'sessionData'           => $sessionData,
+                'assignedOrganisationId'=> null,
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('Integration Create Error', [
+                'message' => $e->getMessage()
+            ]);
+
+            return redirect()
+                ->route('integration.index')
+                ->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * Store Step 1 (basic info)
+     */
+    public function storeStep1(Request $request)
+    {
+        try {
+            $user = auth()->user();
+
+            // Default: user has no organisations
+            $userOrgIds = [];
+
+            // Only fetch org IDs if trait exists
+            if (method_exists($user, 'organisations')) {
+                $userOrgIds = $user->organisations()->pluck('id')->toArray();
+            }
+
+            $rules = [
+                'supported_integration_id' => [
+                    'required',
+                    'integer',
+                    'exists:supported_integrations,id'
+                ],
+                'name' => 'required|string|max:255',
+                'organisation_id' => ['nullable', 'integer'],
+            ];
+
+            // Only validate organisation ownership if user has organisations
+            if (!empty($userOrgIds)) {
+                $rules['organisation_id'][] = 'in:' . implode(',', $userOrgIds);
+            }
+
+            $data = $request->validate($rules);
+
+            session(['integration_step1_data' => $data]);
+
+            Log::info('Integration Step 1 stored', [
+                'user_id' => $user->id,
+                'supported_integration_id' => $data['supported_integration_id']
+            ]);
+
+            return redirect()->route('integration.create', ['step' => 2]);
+
+        } catch (ValidationException $e) {
+            return back()->withInput()->withErrors($e->errors());
+
+        } catch (\Throwable $e) {
+            Log::error('Integration Step 1 Error', [
+                'error' => $e->getMessage()
+            ]);
+
+            return back()->withInput()
+                ->with('error', $e->getMessage());
+        }
+    }
+    
+    /*
+     * Store Integration (step 2)
+     */
+    public function store(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            $step1Data = session('integration_step1_data');
+
+            if (empty($step1Data)) {
+                return redirect()
+                    ->route('integration.create')
+                    ->with('error', 'Session expired. Please start again.');
+            }
+
+            // Step 2 validation (generic credentials)
+            $step2Data = $request->validate([
+                'meta.url'         => 'required|url|max:500',
+                'meta.client_key'  => 'required|string|max:255',
+                'meta.client_token'=> 'required|string|max:2000',
+            ]);
+
+            // Create Integration
+            $integration = new Integration();
+            $integration->uid = (string) Str::ulid();
+            $integration->name = $step1Data['name'];
+            $integration->user_id = $user->id;
+            $integration->supported_integration_id = $step1Data['supported_integration_id'];
+            $integration->status = 'active';
+            $integration->created_by = $user->id;
+            $integration->save();
+
+            // Assign organisation
+            if (!empty($step1Data['organisation_id'])) {
+                try {
+                    $org = Organisation::findOrFail($step1Data['organisation_id']);
+                    $integration->assignOrganisation($org->uid);
+                } catch (\Throwable $e) {
+                    Log::warning('Integration org assign failed', [
+                        'integration_id' => $integration->id
+                    ]);
+                }
+            }
+
+            // Save metas
+            foreach ($step2Data['meta'] as $key => $value) {
+                IntegrationMeta::create([
+                    'ref_parent' => $integration->id,
+                    'meta_key'   => $key,
+                    'meta_value' => $value,
+                    'created_by' => $user->id,
+                ]);
+            }
+            
+            session()->forget('integration_step1_data');
+
+            return redirect()
+                ->route('integration.index')
+                ->with('success', 'Integration created successfully.');
+
+        } catch (ValidationException $e) {
+            return back()->withInput()->withErrors($e->errors());
+
+        } catch (\Throwable $e) {
+            Log::error('Integration Store Error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return back()->withInput()
+                ->with('error',  $e->getMessage());
+        }
+    }
+    
+    /**
+     * Show the edit form for an existing integration
+     */
+    public function edit($integrationUid)
+    {
+        try {
+            $integration = Integration::where('uid', $integrationUid)->firstOrFail();
+            $step = request()->query('step', 1);
+
+            $supportedIntegrations = SupportedIntegration::all();
+
+            $selectedIntegration = $supportedIntegrations
+                ->where('id', $integration->supported_integration_id)
+                ->first();
+
+            // Step 1 session data fallback
+            $sessionData = session('integration_step1_data', [
+                'supported_integration_id' => $integration->supported_integration_id,
+                'name'                     => $integration->name,
+                'organisation_id'          => method_exists($integration, 'organisations') && $integration->organisations->isNotEmpty()
+                    ? $integration->organisations->first()->id
+                    : null,
+            ]);
+
+            $organisations = auth()->user()->organisations ?? collect();
+
+            return view('integration::integrations.form', [
+                'isEdit'                => true,
+                'integration'           => $integration,
+                'supportedIntegrations' => $supportedIntegrations,
+                'selectedIntegration'   => $selectedIntegration,
+                'organisations'         => $organisations,
+                'step'                  => $step,
+                'sessionData'           => $sessionData,
+                'assignedOrganisationId'=> optional($integration->organisations->first())->id,
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('Integration Edit Error', [
+                'integration_uid' => $integrationUid,
+                'message' => $e->getMessage()
+            ]);
+
+            return redirect()->route('integration.index')
+                ->with('error', 'Unable to load integration for editing.');
+        }
+    }
+
+    /**
+     * Update Step 1 (basic info)
+     */
+    public function updateStep1(Request $request, $integrationUid)
+    {
+        try {
+            $integration = Integration::where('uid', $integrationUid)->firstOrFail();
+            $user = auth()->user();
+
+            $userOrgIds = method_exists($user, 'organisations')
+                ? $user->organisations()->pluck('id')->toArray()
+                : [];
+
+            $rules = [
+                'supported_integration_id' => ['required','integer','exists:supported_integrations,id'],
+                'name'                     => ['required','string','max:255'],
+                'organisation_id'          => ['nullable','integer'],
+            ];
+
+            if (!empty($userOrgIds)) {
+                $rules['organisation_id'][] = 'in:' . implode(',', $userOrgIds);
+            }
+
+            $data = $request->validate($rules);
+
+            session(['integration_step1_data' => $data]);
+
+            return redirect()->route('integration.edit', ['integrationUid' => $integrationUid, 'step' => 2]);
+
+        } catch (ValidationException $e) {
+            return back()->withInput()->withErrors($e->errors());
+
+        } catch (\Throwable $e) {
+            Log::error('Integration Update Step 1 Error', [
+                'integration_uid' => $integrationUid,
+                'message' => $e->getMessage()
+            ]);
+
+            return back()->withInput()
+                ->with('error', 'Unable to update integration Step 1.');
+        }
+    }
+
+    /**
+     * Update Integration (step 2)
+     */
+    public function update(Request $request, $integrationUid)
+    {
+        try {
+            $integration = Integration::where('uid', $integrationUid)->firstOrFail();
+            $user = auth()->user();
+            $step1Data = session('integration_step1_data');
+
+            if (empty($step1Data)) {
+                return redirect()->route('integration.edit', ['integrationUid' => $integrationUid])
+                    ->with('error', 'Session expired. Please start again.');
+            }
+
+            // Step 2 validation
+            $step2Data = $request->validate([
+                'meta.url'          => 'required|url|max:500',
+                'meta.client_key'   => 'required|string|max:255',
+                'meta.client_token' => 'required|string|max:2000',
+            ]);
+
+            // Update main integration
+            $integration->name                     = $step1Data['name'];
+            $integration->supported_integration_id = $step1Data['supported_integration_id'];
+            $integration->updated_by               = $user->id;
+            $integration->save();
+
+            // Update organisation assignment
+            if (method_exists($integration, 'organisations')) {
+                if (!empty($step1Data['organisation_id'])) {
+                    $org = Organisation::findOrFail($step1Data['organisation_id']);
+                    $integration->syncOrganisations([$org->id]);
+                } else {
+                    $integration->syncOrganisations([]);
+                }
+            }
+
+            // Update metas
+            foreach ($step2Data['meta'] as $key => $value) {
+                $integration->setMeta($key, $value);
+            }
+
+            session()->forget('integration_step1_data');
+
+            return redirect()->route('integration.index')
+                ->with('success', 'Integration updated successfully.');
+
+        } catch (ValidationException $e) {
+            return back()->withInput()->withErrors($e->errors());
+
+        } catch (\Throwable $e) {
+            Log::error('Integration Update Error', [
+                'integration_uid' => $integrationUid,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->withInput()
+                ->with('error', 'Unable to update integration.');
+        }
+    }
+    
+    public function destroy($integrationUid)
+    {
+        try {
+            $integration = Integration::where('uid', $integrationUid)->firstOrFail();
+
+            $integration->update([
+                'status'     => 'deleted',
+                'updated_by' => auth()->id(),
+            ]);
+
+            return redirect()
+                ->route('integration.index')
+                ->with('success', 'Integration deleted successfully.');
+
+        } catch (\Throwable $e) {
+
+            \Log::error('Integration delete failed', [
+                'integration_uid' => $integrationUid,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('integration.index')
+                ->with('error', 'Unable to delete integration.');
+        }
     }
 
     /**

@@ -4,10 +4,12 @@ namespace Iquesters\Integration\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\User;
+use Iquesters\Organisation\Traits\HasOrganisations;
 
 class Integration extends Model
 {
-    use HasFactory;
+    use HasFactory, HasOrganisations;
 
     /**
      * The table associated with the model.
@@ -102,6 +104,16 @@ class Integration extends Model
     public function isActive(): bool
     {
         return $this->getMeta('is_active', '0') === '1';
+    }
+    
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function supportedInt()
+    {
+        return $this->belongsTo(supportedIntegration::class, 'supported_integration_id');
     }
 
     /**

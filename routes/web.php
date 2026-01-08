@@ -11,6 +11,14 @@ Route::middleware(['web','auth'])->group(function () {
         // Route::prefix('{organisationUid}')->group(function () {
             Route::prefix('integrations')->name('integration.')->group(function () {
                 Route::get('/', [IntegrationController::class, 'index'])->name('index');
+                Route::get('/create', [IntegrationController::class, 'create'])->name('create');
+                Route::post('/create/step1', [IntegrationController::class, 'storeStep1'])->name('store-step1');
+                Route::post('/', [IntegrationController::class, 'store'])->name('store');
+                Route::get('/{integrationUid}/edit', [IntegrationController::class, 'edit'])->name('edit');
+                Route::post('/{integrationUid}/edit/step1', [IntegrationController::class, 'updateStep1'])->name('update-step1');
+                Route::put('/{integrationUid}', [IntegrationController::class, 'update'])->name('update');
+                Route::delete('/{integrationUid}', [IntegrationController::class, 'destroy'])->name('destroy');
+            
                 Route::post('/{integrationId}/toggle', [IntegrationController::class, 'toggleIntegration'])->name('toggle');
                 Route::get('/{integrationUid}/show', [IntegrationController::class, 'showZohoBooks'])->name('show');
                 Route::get('/{integrationUid}/data', [IntegrationController::class, 'showZohoBooksData'])->name('data');

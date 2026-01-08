@@ -25,7 +25,7 @@ return new class extends Migration
 
         Schema::create('supported_integration_metas', function (Blueprint $table) {
             $table->id();
-            $table->bigInteger('ref_parent')->unsigned()->nullable();
+            $table->bigInteger('ref_parent')->unsigned();
             $table->string('meta_key');
             $table->longText('meta_value');
             $table->string('status')->default('unknown');

@@ -8,7 +8,7 @@
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h5 class="fs-6 text-muted">Total {{ $integrations->count() }} Integration(s)</h5>
 
-        <a href="#" class="btn btn-sm btn-outline-primary">
+        <a href="{{ route('integration.create') }}" class="btn btn-sm btn-outline-primary">
             <i class="fa-regular fa-fw fa-plus"></i>
             <span class="d-none d-md-inline-block ms-1">Integration</span>
         </a>
@@ -19,8 +19,9 @@
             <thead>
                 <tr>
                     <th>Name</th>
-                    <th>Owner</th>
                     <th>Status</th>
+                    <th>Created By</th>
+                    <th>Organisation</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -29,28 +30,48 @@
                 @foreach ($integrations as $integration)
                     <tr>
                         <td>
-                            {{ $integration->supportedIntegration->name ?? '-' }}
+                            {{ $integration->name ?? '-' }}
+                            {!! $integration->supportedInt?->getMeta('icon') !!}
+                            <br>
+                            <small class="text-muted">{{ $integration->getMeta('url') ?? '' }}</small>
                         </td>
 
                         <td>
-                            {{ $integration->organisation->name
-                                ?? $integration->user->name
-                                ?? 'Personal' }}
-                        </td>
-
-                        <td>
-                            <span class="badge badge-active">
-                                Active
+                            <span class="badge badge-{{ strtolower($integration->status) }}">
+                                {{ ucfirst($integration->status) }}
                             </span>
                         </td>
 
                         <td>
-                            <a
-                                href="{{ route('integrations.show', $integration->id) }}"
-                                class="btn btn-sm btn-primary"
-                            >
-                                Configure
-                            </a>
+                            {{
+                                optional($integration->creator)->name ?? '-'
+                            }}
+                        </td>
+                        <td>
+                            {{
+                                method_exists($integration, 'organisations')
+                                    ? optional($integration->organisations->first())->name ?? '-'
+                                    : '-'
+                            }}
+                        </td>
+
+                        <td>
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                @if ($integration->status !== 'deleted')   
+                                    <a class="btn btn-sm btn-outline-dark" href="{{ route('integration.edit', $integration->uid) }}">
+                                        <i class="fas fa-fw fa-edit"></i>
+                                    </a>
+                                    <form action="{{ route('integration.destroy', $integration->uid) }}" 
+                                        method="POST" 
+                                        onsubmit="return confirm('Are you sure?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="fas fa-fw fa-trash"></i>
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @endforeach
@@ -58,6 +79,8 @@
         </table>
     </div>
 </div>
+
+<hr class="my-4">
 
 {{-- ===================== --}}
 {{-- Supported Integrations --}}
@@ -83,7 +106,7 @@
             :description="$application->getMeta('description') ?? 'No description available'"
             :icon="$icon"
         >
-            <a href="#" class="btn btn-sm btn-outline-primary">
+            <a href="{{ route('integration.create', ['supported_integration_id' => $application->id]) }}" class="btn btn-sm btn-outline-primary">
                 <i class="fa fa-plus me-1"></i> Integration
             </a>
         </x-userinterface::card-item>

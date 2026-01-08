@@ -21,25 +21,20 @@ return new class extends Migration
                 ->onDelete('cascade');
             $table->string('status')->default('unknown');
             $table->boolean('is_default')->default(false);
-            $table->bigInteger('created_by')->nullable();
-            $table->bigInteger('updated_by')->nullable();
+            $table->bigInteger('created_by')->default(0);
+            $table->bigInteger('updated_by')->default(0);
             $table->timestamps();
-
-            $table->unique(
-                ['user_id', 'supported_integration_id'],
-                'user_integration_unique'
-            );
         });
 
         Schema::create('integration_metas', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('ref_parent')->nullable()->constrained('integrations')
+            $table->foreignId('ref_parent')->constrained('integrations')
                 ->onDelete('cascade')->onUpdate('cascade');
             $table->string('meta_key');
             $table->longText('meta_value');
             $table->string('status')->default('unknown');
-            $table->bigInteger('created_by');
-            $table->bigInteger('updated_by');
+            $table->bigInteger('created_by')->default(0);
+            $table->bigInteger('updated_by')->default(0);
             $table->timestamps();
         });
     }
