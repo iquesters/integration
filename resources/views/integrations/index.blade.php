@@ -105,7 +105,7 @@
                 ?? '<i class="fa-brands fa-whatsapp"></i>';
         @endphp
 
-        @include('userinterface::inc.card-item', [
+        @include('userinterface::components.card-item', [
             'type'        => 'integration',
             'key'         => Str::slug($application->name),
             'title'       => $application->name,
