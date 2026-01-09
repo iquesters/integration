@@ -105,17 +105,14 @@
                 ?? '<i class="fa-brands fa-whatsapp"></i>';
         @endphp
 
-        <x-userinterface::card-item
-            type="integration"
-            :key="Str::slug($application->name)" {{-- woocommerce --}}
-            :title="$application->name"
-            :description="$application->getMeta('description') ?? 'No description available'"
-            :icon="$icon"
-        >
-            <a href="{{ route('integration.create', ['supported_integration_id' => $application->id]) }}" class="btn btn-sm btn-outline-primary">
-                <i class="fa fa-plus me-1"></i> Integration
-            </a>
-        </x-userinterface::card-item>
+        @include('userinterface::inc.card-item', [
+            'type'        => 'integration',
+            'key'         => Str::slug($application->name),
+            'title'       => $application->name,
+            'description' => $application->getMeta('description') ?? 'No description available',
+            'icon'        => $icon,
+            'application' => $application,
+        ])
 
     @endforeach
 </div>
