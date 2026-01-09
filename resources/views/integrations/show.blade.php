@@ -64,7 +64,7 @@
 
                     {{-- Copy ONLY for URL --}}
                     @if($isUrl)
-                        <i class="fa-regular fa-copy text-muted copy-icon ms-2"
+                        <i class="fas fa-copy text-muted copy-icon ms-2"
                         onclick="copyText('meta-{{ $meta->id }}', this)"
                         title="Copy URL"></i>
                     @endif

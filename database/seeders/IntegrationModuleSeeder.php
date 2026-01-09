@@ -136,6 +136,7 @@ class IntegrationModuleSeeder
                     'name'        => $item['name'],
                     'small_name'  => $item['small_name'] ?? '',
                     'nature'      => $item['nature'] ?? 'REST API',
+                    'category'    => $item['category'] ?? '',
                     'status'      => $item['status'] ?? 'unknown',
                     'created_by'  => $item['created_by'] ?? 0,
                     'updated_by'  => $item['updated_by'] ?? 0,

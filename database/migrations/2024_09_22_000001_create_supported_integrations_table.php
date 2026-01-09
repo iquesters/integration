@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('small_name');
             $table->string('nature');
+            $table->string('category');
             $table->string('status')->default('unknown');
             $table->bigInteger('created_by')->default(0);
             $table->bigInteger('updated_by')->default(0);

@@ -18,6 +18,7 @@ class SupportedIntegration extends Model
         'small_name',
         'nature',
         'status',
+        'category',
         'created_by',
         'updated_by',
     ];

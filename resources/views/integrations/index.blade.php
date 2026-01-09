@@ -20,7 +20,7 @@
                 <tr>
                     <th>Name</th>
                     <th>Status</th>
-                    <th>Created By</th>
+                    <th>Created</th>
                     <th>Organisation</th>
                     <th>Actions</th>
                 </tr>
@@ -48,6 +48,10 @@
                             {{
                                 optional($integration->creator)->name ?? '-'
                             }}
+                            <br>
+                            <small>
+                                {{ $integration->created_at->format('d M Y') }}
+                            </small>
                         </td>
                         <td>
                             {{
