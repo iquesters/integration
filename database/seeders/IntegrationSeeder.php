@@ -11,10 +11,10 @@ class IntegrationSeeder extends BaseSeeder
     protected string $description = 'External system integrations module';
 
     protected array $metas = [
-        'module_icon' => 'fa-solid fa-box',
+        'module_icon' => 'fa-solid fa-plug',
         'module_sidebar_menu' => [
             [
-                'icon'  => 'fa-solid fa-box',
+                'icon'  => 'fa-solid fa-link',
                 'label' => 'Integrations',
                 'route' => 'integration.index',
             ],
