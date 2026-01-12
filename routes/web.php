@@ -15,13 +15,12 @@ Route::middleware(['web','auth'])->group(function () {
             Route::prefix('integrations')->name('integration.')->group(function () {
                 Route::get('/', [IntegrationController::class, 'index'])->name('index');
                 Route::get('/create', [IntegrationController::class, 'create'])->name('create');
-                Route::post('/create/step1', [IntegrationController::class, 'storeStep1'])->name('store-step1');
                 Route::post('/', [IntegrationController::class, 'store'])->name('store');
                 Route::get('/{integrationUid}/edit', [IntegrationController::class, 'edit'])->name('edit');
-                Route::post('/{integrationUid}/edit/step1', [IntegrationController::class, 'updateStep1'])->name('update-step1');
                 Route::put('/{integrationUid}', [IntegrationController::class, 'update'])->name('update');
                 Route::delete('/{integrationUid}', [IntegrationController::class, 'destroy'])->name('destroy');
                 Route::get('/{integrationUid}', [IntegrationController::class, 'show'])->name('show');
+                
                 Route::get('/{integrationUid}/configure', [IntegrationConfigController::class, 'configure'])->name('configure');
                 Route::post('/save-configuration', [IntegrationConfigController::class, 'store'])->name('configure.store');
             

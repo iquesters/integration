@@ -88,7 +88,6 @@ class IntegrationController extends Controller
     public function create()
     {
         try {
-            $step = request()->query('step', 1);
             $integrationId = request()->query('supported_integration_id');
 
             // All supported integrations
@@ -108,23 +107,6 @@ class IntegrationController extends Controller
                 }
             }
 
-            // Step 1 session data
-            $sessionData = session('integration_step1_data', []);
-
-            // Prevent skipping step 1
-            if ($step == 2 && empty($sessionData)) {
-                return redirect()
-                    ->route('integrations.create')
-                    ->with('error', 'Please complete Step 1 first.');
-            }
-
-            // Restore selected integration on step 2
-            if ($step == 2 && !empty($sessionData)) {
-                $selectedIntegration = $supportedIntegrations
-                    ->where('id', $sessionData['supported_integration_id'] ?? null)
-                    ->first();
-            }
-
             $organisations = auth()->user()->organisations ?? collect();
 
             return view('integration::integrations.form', [
@@ -133,8 +115,6 @@ class IntegrationController extends Controller
                 'supportedIntegrations' => $supportedIntegrations,
                 'selectedIntegration'   => $selectedIntegration,
                 'organisations'         => $organisations,
-                'step'                  => $step,
-                'sessionData'           => $sessionData,
                 'assignedOrganisationId'=> null,
             ]);
 
@@ -148,16 +128,14 @@ class IntegrationController extends Controller
                 ->with('error', $e->getMessage());
         }
     }
-
-    /**
-     * Store Step 1 (basic info)
+    
+    /*
+     * Store Integration
      */
-    public function storeStep1(Request $request)
+    public function store(Request $request)
     {
         try {
             $user = auth()->user();
-
-            // Default: user has no organisations
             $userOrgIds = [];
 
             // Only fetch org IDs if trait exists
@@ -172,7 +150,7 @@ class IntegrationController extends Controller
                     'exists:supported_integrations,id'
                 ],
                 'name' => 'required|string|max:255',
-                'organisation_id' => ['nullable', 'integer'],
+                'organisation_id' => ['nullable', 'integer']
             ];
 
             // Only validate organisation ownership if user has organisations
@@ -182,64 +160,20 @@ class IntegrationController extends Controller
 
             $data = $request->validate($rules);
 
-            session(['integration_step1_data' => $data]);
-
-            Log::info('Integration Step 1 stored', [
-                'user_id' => $user->id,
-                'supported_integration_id' => $data['supported_integration_id']
-            ]);
-
-            return redirect()->route('integration.create', ['step' => 2]);
-
-        } catch (ValidationException $e) {
-            return back()->withInput()->withErrors($e->errors());
-
-        } catch (\Throwable $e) {
-            Log::error('Integration Step 1 Error', [
-                'error' => $e->getMessage()
-            ]);
-
-            return back()->withInput()
-                ->with('error', $e->getMessage());
-        }
-    }
-    
-    /*
-     * Store Integration (step 2)
-     */
-    public function store(Request $request)
-    {
-        try {
-            $user = auth()->user();
-            $step1Data = session('integration_step1_data');
-
-            if (empty($step1Data)) {
-                return redirect()
-                    ->route('integration.create')
-                    ->with('error', 'Session expired. Please start again.');
-            }
-
-            // Step 2 validation (generic credentials)
-            $step2Data = $request->validate([
-                'meta.url'         => 'required|url|max:500',
-                'meta.client_key'  => 'required|string|max:255',
-                'meta.client_token'=> 'required|string|max:2000',
-            ]);
-
             // Create Integration
             $integration = new Integration();
             $integration->uid = (string) Str::ulid();
-            $integration->name = $step1Data['name'];
+            $integration->name = $data['name'];
             $integration->user_id = $user->id;
-            $integration->supported_integration_id = $step1Data['supported_integration_id'];
+            $integration->supported_integration_id = $data['supported_integration_id'];
             $integration->status = 'active';
             $integration->created_by = $user->id;
             $integration->save();
 
             // Assign organisation
-            if (!empty($step1Data['organisation_id'])) {
+            if (!empty($data['organisation_id'])) {
                 try {
-                    $org = Organisation::findOrFail($step1Data['organisation_id']);
+                    $org = Organisation::findOrFail($data['organisation_id']);
                     $integration->assignOrganisation($org->uid);
                 } catch (\Throwable $e) {
                     Log::warning('Integration org assign failed', [
@@ -247,18 +181,6 @@ class IntegrationController extends Controller
                     ]);
                 }
             }
-
-            // Save metas
-            foreach ($step2Data['meta'] as $key => $value) {
-                IntegrationMeta::create([
-                    'ref_parent' => $integration->id,
-                    'meta_key'   => $key,
-                    'meta_value' => $value,
-                    'created_by' => $user->id,
-                ]);
-            }
-            
-            session()->forget('integration_step1_data');
 
             return redirect()
                 ->route('integration.index')
@@ -285,22 +207,11 @@ class IntegrationController extends Controller
     {
         try {
             $integration = Integration::where('uid', $integrationUid)->firstOrFail();
-            $step = request()->query('step', 1);
-
             $supportedIntegrations = SupportedIntegration::all();
 
             $selectedIntegration = $supportedIntegrations
                 ->where('id', $integration->supported_integration_id)
                 ->first();
-
-            // Step 1 session data fallback
-            $sessionData = session('integration_step1_data', [
-                'supported_integration_id' => $integration->supported_integration_id,
-                'name'                     => $integration->name,
-                'organisation_id'          => method_exists($integration, 'organisations') && $integration->organisations->isNotEmpty()
-                    ? $integration->organisations->first()->id
-                    : null,
-            ]);
 
             $organisations = auth()->user()->organisations ?? collect();
 
@@ -310,8 +221,6 @@ class IntegrationController extends Controller
                 'supportedIntegrations' => $supportedIntegrations,
                 'selectedIntegration'   => $selectedIntegration,
                 'organisations'         => $organisations,
-                'step'                  => $step,
-                'sessionData'           => $sessionData,
                 'assignedOrganisationId'=> optional($integration->organisations->first())->id,
             ]);
 
@@ -327,9 +236,9 @@ class IntegrationController extends Controller
     }
 
     /**
-     * Update Step 1 (basic info)
+     * Update Integration
      */
-    public function updateStep1(Request $request, $integrationUid)
+    public function update(Request $request, $integrationUid)
     {
         try {
             $integration = Integration::where('uid', $integrationUid)->firstOrFail();
@@ -340,9 +249,13 @@ class IntegrationController extends Controller
                 : [];
 
             $rules = [
-                'supported_integration_id' => ['required','integer','exists:supported_integrations,id'],
-                'name'                     => ['required','string','max:255'],
-                'organisation_id'          => ['nullable','integer'],
+                'supported_integration_id' => [
+                    'required',
+                    'integer',
+                    'exists:supported_integrations,id'
+                ],
+                'name' => 'required|string|max:255',
+                'organisation_id' => ['nullable', 'integer'],
             ];
 
             if (!empty($userOrgIds)) {
@@ -351,68 +264,21 @@ class IntegrationController extends Controller
 
             $data = $request->validate($rules);
 
-            session(['integration_step1_data' => $data]);
-
-            return redirect()->route('integration.edit', ['integrationUid' => $integrationUid, 'step' => 2]);
-
-        } catch (ValidationException $e) {
-            return back()->withInput()->withErrors($e->errors());
-
-        } catch (\Throwable $e) {
-            Log::error('Integration Update Step 1 Error', [
-                'integration_uid' => $integrationUid,
-                'message' => $e->getMessage()
-            ]);
-
-            return back()->withInput()
-                ->with('error', 'Unable to update integration Step 1.');
-        }
-    }
-
-    /**
-     * Update Integration (step 2)
-     */
-    public function update(Request $request, $integrationUid)
-    {
-        try {
-            $integration = Integration::where('uid', $integrationUid)->firstOrFail();
-            $user = auth()->user();
-            $step1Data = session('integration_step1_data');
-
-            if (empty($step1Data)) {
-                return redirect()->route('integration.edit', ['integrationUid' => $integrationUid])
-                    ->with('error', 'Session expired. Please start again.');
-            }
-
-            // Step 2 validation
-            $step2Data = $request->validate([
-                'meta.url'          => 'required|url|max:500',
-                'meta.client_key'   => 'required|string|max:255',
-                'meta.client_token' => 'required|string|max:2000',
-            ]);
-
             // Update main integration
-            $integration->name                     = $step1Data['name'];
-            $integration->supported_integration_id = $step1Data['supported_integration_id'];
-            $integration->updated_by               = $user->id;
+            $integration->name = $data['name'];
+            $integration->supported_integration_id = $data['supported_integration_id'];
+            $integration->updated_by = $user->id;
             $integration->save();
 
             // Update organisation assignment
             if (method_exists($integration, 'organisations')) {
-                if (!empty($step1Data['organisation_id'])) {
-                    $org = Organisation::findOrFail($step1Data['organisation_id']);
+                if (!empty($data['organisation_id'])) {
+                    $org = Organisation::findOrFail($data['organisation_id']);
                     $integration->syncOrganisations([$org->id]);
                 } else {
                     $integration->syncOrganisations([]);
                 }
             }
-
-            // Update metas
-            foreach ($step2Data['meta'] as $key => $value) {
-                $integration->setMeta($key, $value);
-            }
-
-            session()->forget('integration_step1_data');
 
             return redirect()->route('integration.index')
                 ->with('success', 'Integration updated successfully.');
