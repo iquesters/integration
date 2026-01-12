@@ -1,4 +1,7 @@
-@extends('userinterface::layouts.app')
+@extends(app('app.layout'))
+
+@section('page-title', \Iquesters\Foundation\Helpers\MetaHelper::make([($isEdit ? 'Edit' : 'Create'), 'Integration']))
+@section('meta-description', \Iquesters\Foundation\Helpers\MetaHelper::description('Create/Edit of Integration'))
 
 @section('content')
 <div>

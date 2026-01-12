@@ -5,8 +5,11 @@ use Iquesters\Integration\Http\Controllers\ApiConfigurationController;
 use Iquesters\Integration\Http\Controllers\IntegrationController;
 use Iquesters\Integration\Http\Controllers\IntApiCallContactController;
 use Iquesters\Integration\Http\Controllers\IntApiResponseMatchingContactController;
+use Iquesters\Integration\Http\Controllers\IntegrationConfigController;
+use Iquesters\Integration\Http\Controllers\WebsiteController;
 
 Route::middleware(['web','auth'])->group(function () {
+    Route::post('/api/fetch-website', [WebsiteController::class, 'fetchWebsite'])->name('fetch.website');
     // Route::prefix('Organisation')->name('organisations.')->group(function () {
         // Route::prefix('{organisationUid}')->group(function () {
             Route::prefix('integrations')->name('integration.')->group(function () {
@@ -19,6 +22,8 @@ Route::middleware(['web','auth'])->group(function () {
                 Route::put('/{integrationUid}', [IntegrationController::class, 'update'])->name('update');
                 Route::delete('/{integrationUid}', [IntegrationController::class, 'destroy'])->name('destroy');
                 Route::get('/{integrationUid}', [IntegrationController::class, 'show'])->name('show');
+                Route::get('/{integrationUid}/configure', [IntegrationConfigController::class, 'configure'])->name('configure');
+                Route::post('/save-configuration', [IntegrationConfigController::class, 'store'])->name('configure.store');
             
                 Route::post('/{integrationId}/toggle', [IntegrationController::class, 'toggleIntegration'])->name('toggle');
                 Route::get('/{integrationUid}/show', [IntegrationController::class, 'showZohoBooks'])->name('show-zoho');

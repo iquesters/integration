@@ -1,4 +1,7 @@
-@extends('userinterface::layouts.app')
+@extends(app('app.layout'))
+
+@section('page-title', \Iquesters\Foundation\Helpers\MetaHelper::make([($integration->name ?? 'Integration'), 'Integration']))
+@section('meta-description', \Iquesters\Foundation\Helpers\MetaHelper::description('Show page of Integration'))
 
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -13,7 +16,13 @@
         </div>
 
         <div class="d-flex align-items-center justify-content-center gap-2">
-            @if ($integration->status !== 'deleted')   
+            @if ($integration->status !== 'deleted')
+                            {{-- Configure --}}
+                <a class="btn btn-sm btn-outline-primary"
+                href="{{ route('integration.configure', $integration->uid) }}">
+                    <i class="fas fa-fw fa-sliders-h"></i>
+                    <span class="d-none d-md-inline-block ms-1">Configure</span>
+                </a>
                 <a class="btn btn-sm btn-outline-dark" href="{{ route('integration.edit', $integration->uid) }}">
                     <i class="fas fa-fw fa-edit"></i>
                     <span class="d-none d-md-inline-block ms-1">Edit</span>

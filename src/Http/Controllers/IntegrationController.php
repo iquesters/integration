@@ -15,6 +15,7 @@ use Illuminate\Support\Str;
 use Iquesters\Integration\Models\IntegrationMeta;
 use Iquesters\Integration\Models\SupportedIntegration;
 use Illuminate\Validation\ValidationException;
+use Iquesters\Integration\Constants\Constants;
 
 class IntegrationController extends Controller
 {
@@ -97,7 +98,7 @@ class IntegrationController extends Controller
 
             if ($integrationId) {
                 $selectedIntegration = $supportedIntegrations
-                    ->where('id', $integrationId)
+                    ->where('uid', $integrationId)
                     ->first();
 
                 if (!$selectedIntegration) {
