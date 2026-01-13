@@ -5,8 +5,9 @@
 
 @section('content')
 <div>
-    <div class="d-flex align-items-center justify-content-start gap-2 mb-2">
-        <h5 class="fs-6 text-muted mb-0">
+    {{-- Header --}}
+    <div class="d-flex align-items-center justify-content-start gap-2 mb-3">
+        <h5 class="mb-0 text-muted">
             {{ $integration->name }}
             {!! $integration->supportedInt?->getMeta('icon') !!}
         </h5>
@@ -15,277 +16,381 @@
         </span>
     </div>
 
-    <div class="d-flex align-items-end w-75 gap-2">
-        <div class="form-group flex-grow-1">
-            <label for="website_url mb-2">Website URL</label>
-            <input
-                type="url"
-                id="website_url"
-                class="form-control"
-                placeholder="https://example.com"
-                value="{{ $websiteUrl ?? '' }}"
-                {{ !empty($websiteUrl) ? '' : '' }}
-            >
+    {{-- Main Configuration Row --}}
+    <div class="row g-2">
+        {{-- Left Column: Website URL & Preview --}}
+        <div class="col-lg-6">
+            {{-- Configuration Steps --}}
+            <div class="border rounded p-2">
+                <h6 class="mb-2 text-secondary">Configuration Steps</h6>
+
+                <ul class="list-unstyled mb-0" id="configSteps">
+
+                    <li class="mb-2">
+                        Enter main domain URL
+                        <ul class="text-muted small mt-1 list-unstyled" id="step1-messages"></ul>
+                    </li>
+
+                    <li class="mb-2">
+                        Click "Check" to verify website
+                        <ul class="text-muted small mt-1 list-unstyled" id="step2-messages"></ul>
+                    </li>
+
+                    <li class="mb-2">
+                        Enter Consumer Key (CK)
+                        <ul class="text-muted small mt-1 list-unstyled" id="step3-messages"></ul>
+                    </li>
+
+                    <li class="mb-2">
+                        Enter Consumer Secret (CS)
+                        <ul class="text-muted small mt-1 list-unstyled" id="step4-messages"></ul>
+                    </li>
+
+                    <li class="mb-2">
+                        Test API connection
+                        <ul class="text-muted small mt-1 list-unstyled" id="step5-messages"></ul>
+                    </li>
+
+                    <li class="mb-0">
+                        Save configuration
+                        <ul class="text-muted small mt-1 list-unstyled" id="step6-messages"></ul>
+                    </li>
+
+                </ul>
+
+                <hr class="my-3">
+
+                <p class="text-muted mb-0">
+                    Need help getting API keys?
+                    <a href="#woocommerce-docs" class="text-decoration-none">View documentation below</a>
+                </p>
+            </div>
         </div>
 
-        <button class="btn btn-sm btn-outline-primary" id="checkBtn" {{ !empty($websiteUrl) ? '' : '' }}>
-            <span id="btnText">Check</span>
-            <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2" style="display:none;"></span>
-        </button>
-    </div>
+        {{-- Right Column: API Keys & Steps --}}
+        <div class="col-lg-6">
 
-    {{-- Preview and Response Section --}}
-    <div id="previewSection" class="mt-4" style="display:{{ !empty($websiteUrl) ? 'block' : 'none' }};">
-        <h5 class="fs-6 text-muted mb-3">Website Preview</h5>
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card shadow-sm">
-                    <div class="card-body p-2">
-                        <div class="d-flex align-items-start gap-2">
-                            {{-- Preview Box (150x150) --}}
-                            <div class="preview-box flex-shrink-0" style="width: 150px; height: 150px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; background: #f8f9fa; display: flex; align-items: center; justify-content: center; position: relative;">
-                                <img id="previewImage" src="" alt="Preview" style="display: none; width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;">
-                                <img id="websiteFavicon" src="" alt="Favicon" style="width: 48px; height: 48px; display: none; position: relative; z-index: 1;">
-                                <div id="placeholderIcon" style="display: flex; align-items: center; justify-content: center; color: #adb5bd; font-size: 48px;">
-                                    <i class="fa-solid fa-globe fs-1"></i>
-                                </div>
-                            </div>
-                            
-                            {{-- Website Info --}}
-                            <div class="flex-grow-1" style="min-width: 0;">
-                                <h6 id="websiteTitle" class="mb-2 text-truncate" style="font-size: 0.95rem; font-weight: 600;">{{ !empty($websiteUrl) ? 'Website Verified' : '' }}</h6>
-                                <p id="websiteDescription" class="text-muted mb-2 small" style="font-size: 0.8rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">{{ !empty($websiteUrl) ? 'Configuration saved' : '' }}</p>
-                                <a id="websiteLink" href="{{ $websiteUrl ?? '' }}" target="_blank" class="text-decoration-none small d-inline-flex align-items-center gap-1" style="font-size: 0.75rem; color: #0d6efd;">
-                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                    <span id="websiteLinkText" class="text-truncate" style="max-width: 150px;">{{ $websiteUrl ?? '' }}</span>
-                                </a>
-                            </div>
+            <div class="mb-2">
+                <label for="website_url" class="form-label">
+                    Website URL <span class="text-muted">(Main domain only)</span>
+                </label>
+
+                <div class="input-group">
+                    <input
+                        type="url"
+                        id="website_url"
+                        class="form-control"
+                        placeholder="https://example.com"
+                        value="{{ $websiteUrl ?? '' }}"
+                    >
+
+                    <button class="btn btn-outline-primary" id="checkBtn" type="button" disabled>
+                        <span id="btnText">Check</span>
+                        <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2" style="display:none;"></span>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Preview Section --}}
+            <div class="border rounded p-2 mb-2">
+
+                {{-- Default State --}}
+                <div id="noPreview" style="display:{{ empty($websiteUrl) ? 'block' : 'none' }};">
+                    <div class="d-flex align-items-start gap-2">
+                        <div class="preview-box flex-shrink-0" style="width: 80px; height: 80px; border: 1px dashed #dee2e6; border-radius: 8px; background: #f8f9fa; display: flex; align-items: center; justify-content: center;">
+                            <i class="fa-solid fa-globe text-muted" style="font-size: 32px;"></i>
+                        </div>
+
+                        <div class="flex-grow-1" style="min-width: 0;">
+                            <h6 class="mb-2 text-muted">No website preview available</h6>
+                            <p class="text-muted mb-2" style="line-height: 1.5;">
+                                Click <strong>“Check”</strong> to verify website
+                            </p>
+                            <span class="text-muted small">
+                                https://example.com
+                            </span>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            {{-- Response Display --}}
-            <div class="col-md-6">
-                <div class="card shadow-sm" style="height: 100%;">
-                    <div class="card-body p-2 d-flex flex-column align-items-center justify-content-center">
-                        <h6 class="mb-3" style="font-size: 0.9rem; font-weight: 600;">Status</h6>
-                        <div id="websiteStatus" class="d-flex align-items-center justify-content-center" style="width: 120px; height: 120px; border-radius: 50%; font-size: 2rem; font-weight: bold; background-color: {{ !empty($websiteUrl) ? '#d4edda' : '' }}; color: {{ !empty($websiteUrl) ? '#155724' : '' }}; border: {{ !empty($websiteUrl) ? '3px solid #c3e6cb' : '' }};">{{ !empty($websiteUrl) ? '200' : '' }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    {{-- Status Message --}}
-    <div id="statusMessage" class="mt-4 {{ !empty($websiteUrl) ? 'fw-bold text-success' : '' }}">
-        {{ !empty($websiteUrl) ? 'Website verified successfully! Please configure WooCommerce API keys below.' : '' }}
-    </div>
-
-    {{-- WooCommerce API Configuration --}}
-    <div id="apiConfigSection" class="mt-4" style="display:{{ !empty($websiteUrl) ? 'block' : 'none' }};">
-        <div>
-            <div class="d-flex align-items-center justify-content-between mb-3">
-                <h5 class="fs-6 mb-0">WooCommerce API Configuration</h5>
-                <a href="https://woocommerce.github.io/woocommerce-rest-api-docs/#authentication" target="_blank" class="btn btn-sm btn-outline-info d-inline-flex align-items-center gap-1">
-                    <i class="fas fa-fe fa-circle-info"></i>
-                    Documentation
-                </a>
-            </div>
-
-            <div class="mb-3 text-muted">
-                <p>
-                    To create or manage keys for a specific WordPress user, go to
-                    WooCommerce > Settings > Advanced > REST API.
-                </p>
-
-                <p class="small">
-                    Note: Keys/Apps was found at WooCommerce > Settings > API > Key/Apps
-                    prior to WooCommerce 3.4.
-                </p>
-
-                {{-- Image 1 --}}
-                <div class="row my-3">
-                    <div class="col-12 col-lg-6">
-                        <img
-                            src="{{ \Iquesters\Integration\IntegrationServiceProvider::asset('img/woocommerce/api-keys-settings.png') }}"
-                            class="img-fluid"
-                            alt="api-keys-settings">
-                    </div>
-                </div>
-
-                <p>
-                    Click the "Add Key" button. In the next screen, add a description and
-                    select the WordPress user you would like to generate the key for.
-                    Use of the REST API with the generated keys will conform to that user's
-                    WordPress roles and capabilities.
-                </p>
-
-                <p>
-                    Choose the level of access for this REST API key, which can be Read access,
-                    Write access or Read/Write access. Then click the "Generate API Key"
-                    button and WooCommerce will generate REST API keys for the selected user.
-                </p>
-
-                {{-- Image 2 --}}
-                <div class="row my-3">
-                    <div class="col-12 col-lg-6">
-                        <img
-                            src="{{ \Iquesters\Integration\IntegrationServiceProvider::asset('img/woocommerce/creating-api-keys.png') }}"
-                            class="img-fluid"
-                            alt="creating-api-keys">
-                    </div>
-                </div>
-
-                <p>
-                    Now that keys have been generated, you should see two new keys, a QRCode,
-                    and a Revoke API Key button. These two keys are your Consumer Key and
-                    Consumer Secret.
-                </p>
-
-                {{-- Image 3 --}}
-                <div class="row my-3">
-                    <div class="col-12 col-lg-6">
-                        <img
-                            src="{{ \Iquesters\Integration\IntegrationServiceProvider::asset('img/woocommerce/api-key-generated.png') }}"
-                            class="img-fluid"
-                            alt="api-key-generated">
+                {{-- Preview Content --}}
+                <div id="previewContent" style="display:{{ !empty($websiteUrl) ? 'block' : 'none' }};">
+                    <div class="d-flex align-items-start gap-2">
+                        <div class="preview-box flex-shrink-0" style="width: 80px; height: 80px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; position: relative;">
+                            <img id="previewImage" src="" alt="Preview" style="display: none; width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;">
+                            <img id="websiteFavicon" src="" alt="Favicon" style="width: 32px; height: 32px; display: none; position: relative; z-index: 1;">
+                            <div id="placeholderIcon" style="display: flex; align-items: center; justify-content: center; color: #adb5bd; font-size: 32px;">
+                                <i class="fa-solid fa-globe"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="flex-grow-1" style="min-width: 0;">
+                            <h6 id="websiteTitle" class="mb-2 text-truncate">{{ !empty($websiteUrl) ? 'Website Verified' : '' }}</h6>
+                            <p id="websiteDescription" class="text-muted mb-2" style="line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ !empty($websiteUrl) ? 'Configuration saved' : '' }}</p>
+                            <a id="websiteLink" href="{{ $websiteUrl ?? '' }}" target="_blank" class="text-decoration-none d-inline-flex align-items-center gap-1">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                <span id="websiteLinkText" class="text-truncate" style="max-width: 300px;">{{ $websiteUrl ?? '' }}</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
 
             </div>
-
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="consumer_key" class="form-label">Consumer Key</label>
-                        <input 
-                            type="text" 
-                            id="consumer_key" 
-                            class="form-control" 
-                            placeholder="ck_xxxxxxxxxx"
-                            value="{{ $consumerKey ?? '' }}"
-                            {{ !empty($consumerKey) ? '' : '' }}
-                        >
-                    </div>
+            <div class="row g-2 mb-2 mt-3">
+                <div class="col-12">
+                    <label for="consumer_key" class="form-label">Consumer Key</label>
+                    <input 
+                        type="text" 
+                        id="consumer_key" 
+                        class="form-control" 
+                        placeholder="ck_xxxxxxxxxx"
+                        value="{{ $consumerKey ?? '' }}"
+                    >
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="consumer_secret" class="form-label">Consumer Secret</label>
-                        <input 
-                            type="text" 
-                            id="consumer_secret" 
-                            class="form-control" 
-                            placeholder="cs_xxxxxxxxxx"
-                            value="{{ $consumerSecret ?? '' }}"
-                            {{ !empty($consumerSecret) ? '' : '' }}
-                        >
-                    </div>
+                <div class="col-12">
+                    <label for="consumer_secret" class="form-label">Consumer Secret</label>
+                    <input 
+                        type="text" 
+                        id="consumer_secret" 
+                        class="form-control" 
+                        placeholder="cs_xxxxxxxxxx"
+                        value="{{ $consumerSecret ?? '' }}"
+                    >
                 </div>
             </div>
-            <div class="d-flex justify-content-end">
-                <button class="btn btn-sm btn-outline-primary" id="testApiBtn" {{ (empty($consumerKey) || empty($consumerSecret) || !empty($isActive)) ? 'disabled' : '' }}>
+
+            <div class="d-flex gap-2 mb-2">
+                <button class="btn btn-sm btn-outline-info" id="testApiBtn" disabled>
                     <span id="testBtnText">Test Connection</span>
                     <span id="testBtnSpinner" class="spinner-border spinner-border-sm ms-2" style="display:none;"></span>
                 </button>
-            </div>
-        </div>
-    </div>
-
-    {{-- API Test Response --}}
-    <div id="apiTestSection" class="mt-3" style="display:{{ !empty($isActive) ? 'block' : 'none' }};">
-        <div class="row align-items-center">
-
-            <!-- Status Card -->
-            <div class="col-12 col-md-6 mb-3 mb-md-0">
-                <div class="shadow-sm border p-2 text-center">
-                    <h6 class="mb-3" style="font-size: 0.9rem; font-weight: 600;">
-                        API Test Status
-                    </h6>
-
-                    <div
-                        id="apiTestStatus"
-                        class="d-flex align-items-center justify-content-center mx-auto mb-3"
-                        style="
-                            width: 120px;
-                            height: 120px;
-                            border-radius: 50%;
-                            font-size: 2rem;
-                            font-weight: bold;
-                            background-color: {{ !empty($isActive) ? '#d4edda' : '' }};
-                            color: {{ !empty($isActive) ? '#155724' : '' }};
-                            border: {{ !empty($isActive) ? '3px solid #c3e6cb' : '' }};
-                        ">
-                        {{ !empty($isActive) ? '200' : '' }}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Save Button -->
-            <div class="col-12 col-md-6 text-center text-md-end">
-                @if(empty($isActive))
-                <button
-                    class="btn btn-sm btn-outline-primary"
-                    id="saveBtn"
-                    style="display:none;">
-                    Save Configuration
+                <button class="btn btn-sm btn-outline-primary" id="saveBtn" style="display:none;">
+                    <span>Save Configuration</span>
                 </button>
-                @else
-                <div class="alert alert-success mb-0">
-                    <i class="fa-solid fa-circle-check"></i> Configuration Already Saved
-                </div>
-                @endif
             </div>
 
+        
         </div>
     </div>
 
+    {{-- Success Message --}}
+    @if(!empty($isActive))
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="alert alert-success text-center mb-0">
+                <i class="fa-solid fa-circle-check me-2"></i> Configuration Successfully Saved
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Website URL Documentation --}}
+    <div class="mt-5 pt-4 border-top">
+        <div class="mb-4">
+            <h5 class="fs-6 mb-3">
+                Website URL Requirements
+            </h5>
+            <p class="mb-2">
+                <strong>Important:</strong> Please provide only your main domain URL, not specific page URLs.
+            </p>
+            <ul class="mb-0">
+                <li><strong>Correct:</strong> <code class="text-success">https://example.com</code> or <code class="text-success">https://www.example.com</code></li>
+                <li><strong>Incorrect:</strong> <code class="text-danger">https://example.com/shop</code> or <code class="text-danger">https://example.com/wp-admin</code></li>
+            </ul>
+        </div>
+    </div>
+
+    {{-- WooCommerce API Documentation --}}
+    <div class="mt-4 pt-4 border-top" id="woocommerce-docs">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h5 class="fs-6 mb-0">
+                WooCommerce API Configuration Guide
+            </h5>
+        </div>
+
+        <div class="text-muted">
+            <p class="mb-3">
+                To create or manage keys for a specific WordPress user, go to
+                <strong>WooCommerce > Settings > Advanced > REST API</strong>.
+            </p>
+
+            <p class="mb-4">
+                <em>Note: Keys/Apps was found at WooCommerce > Settings > API > Key/Apps
+                prior to WooCommerce 3.4.</em>
+            </p>
+
+            <div class="mb-4">
+                <img
+                    src="{{ \Iquesters\Integration\IntegrationServiceProvider::asset('img/woocommerce/api-keys-settings.png') }}"
+                    class="img-fluid rounded border"
+                    alt="api-keys-settings"
+                    style="max-width: 700px;">
+            </div>
+
+            <p class="mb-3">
+                Click the <strong>"Add Key"</strong> button. In the next screen, add a description and
+                select the WordPress user you would like to generate the key for.
+                Use of the REST API with the generated keys will conform to that user's
+                WordPress roles and capabilities.
+            </p>
+
+            <p class="mb-4">
+                Choose the level of access for this REST API key, which can be <strong>Read access</strong>,
+                <strong>Write access</strong> or <strong>Read/Write access</strong>. Then click the 
+                <strong>"Generate API Key"</strong> button and WooCommerce will generate REST API keys 
+                for the selected user.
+            </p>
+
+            <div class="mb-4">
+                <img
+                    src="{{ \Iquesters\Integration\IntegrationServiceProvider::asset('img/woocommerce/creating-api-keys.png') }}"
+                    class="img-fluid rounded border"
+                    alt="creating-api-keys"
+                    style="max-width: 700px;">
+            </div>
+
+            <p class="mb-3">
+                Now that keys have been generated, you should see two new keys, a QRCode,
+                and a Revoke API Key button. These two keys are your <strong>Consumer Key</strong> and
+                <strong>Consumer Secret</strong>.
+            </p>
+
+            <div class="mb-4">
+                <img
+                    src="{{ \Iquesters\Integration\IntegrationServiceProvider::asset('img/woocommerce/api-key-generated.png') }}"
+                    class="img-fluid rounded border"
+                    alt="api-key-generated"
+                    style="max-width: 700px;">
+            </div>
+            <p>
+                <small>
+                    For full details, refer to the official WooCommerce documentation.
+                    <a href="https://woocommerce.github.io/woocommerce-rest-api-docs/#authentication" target="_blank" class="text-decoration-none ms-1">
+                        <i class="fas fa-fw fa-external-link-alt"></i>
+                        Official Documentation
+                    </a>
+                </small>
+            </p>
+        </div>
+    </div>
 </div>
 @endsection
 
 @push('scripts')
 <script>
-// Enable test button when both keys are filled
-document.getElementById('consumer_key').addEventListener('input', checkApiFields);
-document.getElementById('consumer_secret').addEventListener('input', checkApiFields);
+// Helper function to add step messages
+function addStepMessage(stepId, message, type = 'info', messageId = null) {
+    const container = document.getElementById(`${stepId}-messages`);
+    if (!container) return;
 
+    const li = document.createElement('li');
+    if (messageId) {
+        li.id = messageId;
+    }
+
+    const icons = {
+        info: 'fa-circle-info',
+        success: 'fa-circle-check text-success',
+        warning: 'fa-triangle-exclamation text-warning',
+        error: 'fa-circle-xmark text-danger',
+        loading: 'fa-spinner fa-spin'
+    };
+
+    li.innerHTML = `<i class="fa-solid ${icons[type]} me-1"></i>${message}`;
+    container.appendChild(li);
+}
+
+// Helper function to remove a specific message
+function removeStepMessage(messageId) {
+    const message = document.getElementById(messageId);
+    if (message) {
+        message.remove();
+    }
+}
+
+// Step management
+function updateStep(stepId, checked) {
+    const checkbox = document.getElementById(stepId);
+    if (checkbox) {
+        checkbox.checked = checked;
+    }
+}
+
+// Check if website URL is filled
+const websiteInput = document.getElementById('website_url');
+const checkBtn = document.getElementById('checkBtn');
+
+websiteInput.addEventListener('input', function () {
+    const hasValue = this.value.trim().length > 0;
+    const container = document.getElementById('step1-messages');
+    
+    // Clear previous messages
+    container.innerHTML = '';
+    
+    if (hasValue) {
+        addStepMessage('step1', `URL entered: ${this.value.trim()}`, 'success');
+        checkBtn.disabled = false;
+    } else {
+        checkBtn.disabled = true;
+    }
+    
+    updateStep('step1', hasValue);
+});
+
+// Enable test button when both keys are filled
 function checkApiFields() {
     const key = document.getElementById('consumer_key').value.trim();
     const secret = document.getElementById('consumer_secret').value.trim();
     const testApiBtn = document.getElementById('testApiBtn');
-    const consumerKeyInput = document.getElementById('consumer_key');
-    const consumerSecretInput = document.getElementById('consumer_secret');
     
-    // Only enable if both fields have values AND fields are not disabled
-    if (!consumerKeyInput.disabled && !consumerSecretInput.disabled) {
-        testApiBtn.disabled = !(key && secret);
+    // Clear and update step 3 messages
+    const step3Container = document.getElementById('step3-messages');
+    step3Container.innerHTML = '';
+    if (key.length > 0) {
+        addStepMessage('step3', `Consumer Key: ${key}`, 'success');
     }
+    updateStep('step3', key.length > 0);
+    
+    // Clear and update step 4 messages
+    const step4Container = document.getElementById('step4-messages');
+    step4Container.innerHTML = '';
+    if (secret.length > 0) {
+        // Mask the secret for security (show first 4 and last 4 characters)
+        const masked = secret.length > 8 
+            ? `${secret.substring(0, 4)}...${secret.substring(secret.length - 4)}`
+            : '••••••••';
+        addStepMessage('step4', `Consumer Secret: ${masked}`, 'success');
+    }
+    updateStep('step4', secret.length > 0);
+    
+    testApiBtn.disabled = !(key && secret);
 }
+
+document.getElementById('consumer_key').addEventListener('input', checkApiFields);
+document.getElementById('consumer_secret').addEventListener('input', checkApiFields);
 
 // Website Check
 document.getElementById('checkBtn').addEventListener('click', async function () {
     const url = document.getElementById('website_url').value;
-    const previewSection = document.getElementById('previewSection');
-    const apiConfigSection = document.getElementById('apiConfigSection');
+    const noPreview = document.getElementById('noPreview');
+    const previewContent = document.getElementById('previewContent');
     const statusMessage = document.getElementById('statusMessage');
     const btnText = document.getElementById('btnText');
     const btnSpinner = document.getElementById('btnSpinner');
     const checkBtn = document.getElementById('checkBtn');
-    const websiteUrlInput = document.getElementById('website_url');
 
     // Reset
-    statusMessage.innerHTML = '';
-    statusMessage.className = 'mt-4 fw-bold';
-    previewSection.style.display = 'none';
-    apiConfigSection.style.display = 'none';
-    document.getElementById('apiTestSection').style.display = 'none';
+    if (statusMessage) {
+        statusMessage.style.display = 'none';
+        statusMessage.className = 'py-2 mb-3';
+        statusMessage.innerHTML = '';
+    }
 
     if (!url) {
         alert('Please enter a website URL');
         return;
     }
 
-    // Basic URL validation
     try {
         new URL(url);
     } catch (e) {
@@ -296,6 +401,9 @@ document.getElementById('checkBtn').addEventListener('click', async function () 
     // Show loading state
     checkBtn.disabled = true;
     btnSpinner.style.display = 'inline-block';
+    
+    // Add loading message with unique ID
+    addStepMessage('step2', 'Verifying website...', 'loading', 'step2-verifying');
 
     try {
         const response = await fetch('/api/fetch-website', {
@@ -316,85 +424,65 @@ document.getElementById('checkBtn').addEventListener('click', async function () 
             document.getElementById('placeholderIcon').style.display = 'flex';
 
             // Display preview data
-            document.getElementById('websiteTitle').textContent = data.title || 'No title found';
-            document.getElementById('websiteDescription').textContent = data.description || 'No description available';
+            document.getElementById('websiteTitle').innerHTML = data.title || 'No title found';
+            document.getElementById('websiteDescription').innerHTML = data.description || 'No description available';
             document.getElementById('websiteLink').href = url;
-            document.getElementById('websiteLinkText').textContent = url;
+            document.getElementById('websiteLinkText').innerHTML = url;
 
-            // Show preview image if available (priority)
             if (data.image) {
                 document.getElementById('previewImage').src = data.image;
                 document.getElementById('previewImage').style.display = 'block';
                 document.getElementById('placeholderIcon').style.display = 'none';
-            } 
-            // Otherwise show favicon
-            else if (data.favicon) {
+            } else if (data.favicon) {
                 document.getElementById('websiteFavicon').src = data.favicon;
                 document.getElementById('websiteFavicon').style.display = 'block';
                 document.getElementById('placeholderIcon').style.display = 'none';
             }
 
-            // Display response JSON
-            const statusCode = response.status;
-            const statusEl = document.getElementById('websiteStatus');
-            statusEl.textContent = statusCode;
+            noPreview.style.display = 'none';
+            previewContent.style.display = 'block';
             
-            // Color based on status code
-            if (statusCode >= 200 && statusCode < 300) {
-                statusEl.style.backgroundColor = '#d4edda';
-                statusEl.style.color = '#155724';
-                statusEl.style.border = '3px solid #c3e6cb';
-            } else if (statusCode >= 300 && statusCode < 400) {
-                statusEl.style.backgroundColor = '#fff3cd';
-                statusEl.style.color = '#856404';
-                statusEl.style.border = '3px solid #ffeeba';
-            } else if (statusCode >= 400 && statusCode < 500) {
-                statusEl.style.backgroundColor = '#f8d7da';
-                statusEl.style.color = '#721c24';
-                statusEl.style.border = '3px solid #f5c6cb';
-            } else {
-                statusEl.style.backgroundColor = '#f8d7da';
-                statusEl.style.color = '#721c24';
-                statusEl.style.border = '3px solid #f5c6cb';
-            }
-
-            previewSection.style.display = 'block';
-            
-            // Show API config section if status is 200
+            // Add success message (keep verifying message)
             if (response.status === 200) {
-                apiConfigSection.style.display = 'block';
-                statusMessage.innerHTML = 'Website verified successfully! Please configure WooCommerce API keys below.';
-                statusMessage.classList.add('text-success');
-                
-                // DISABLE website URL field and Check button
-                websiteUrlInput.disabled = true;
-                checkBtn.disabled = true;
+                addStepMessage('step2', 'Website verified successfully', 'success');
+                if (statusMessage) {
+                    statusMessage.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i>Website verified successfully!';
+                    statusMessage.classList.add('text-success');
+                    statusMessage.style.display = 'block';
+                }
+                updateStep('step2', true);
             } else {
-                statusMessage.innerHTML = 'Website found but verification incomplete.';
-                statusMessage.classList.add('text-warning');
+                addStepMessage('step2', 'Website found but verification incomplete', 'warning');
+                if (statusMessage) {
+                    statusMessage.innerHTML = '<i class="fa-solid fa-exclamation-triangle me-2"></i>Website found but verification incomplete.';
+                    statusMessage.classList.add('text-warning');
+                    statusMessage.style.display = 'block';
+                }
             }
         } else {
-            // Error message
-            statusMessage.innerHTML = data.message || 'Unable to verify website';
-            statusMessage.classList.add('text-danger');
-            
-            // Display error status
-            const statusEl = document.getElementById('websiteStatus');
-            statusEl.textContent = response.status || 'Error';
-            statusEl.style.backgroundColor = '#f8d7da';
-            statusEl.style.color = '#721c24';
-            statusEl.style.border = '3px solid #f5c6cb';
-            previewSection.style.display = 'block';
+            // Remove verifying message and add error
+            removeStepMessage('step2-verifying');
+            addStepMessage('step2', 'Verification failed', 'error');
+            if (statusMessage) {
+                statusMessage.innerHTML = `<i class="fa-solid fa-circle-xmark me-2"></i>${data.message || 'Unable to verify website'}`;
+                statusMessage.classList.add('text-danger');
+                statusMessage.style.display = 'block';
+            }
+            noPreview.style.display = 'none';
+            previewContent.style.display = 'block';
         }
 
     } catch (error) {
-        statusMessage.innerHTML = 'Network error. Please try again.';
-        statusMessage.classList.add('text-danger');
-    } finally {
-        // Reset button state only if not status 200
-        if (!websiteUrlInput.disabled) {
-            checkBtn.disabled = false;
+        // Remove verifying message and add error
+        removeStepMessage('step2-verifying');
+        addStepMessage('step2', 'Network error occurred', 'error');
+        if (statusMessage) {
+            statusMessage.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Network error. Please try again.';
+            statusMessage.classList.add('text-danger');
+            statusMessage.style.display = 'block';
         }
+    } finally {
+        checkBtn.disabled = false;
         btnSpinner.style.display = 'none';
     }
 });
@@ -407,25 +495,18 @@ document.getElementById('testApiBtn').addEventListener('click', async function (
     const testBtnText = document.getElementById('testBtnText');
     const testBtnSpinner = document.getElementById('testBtnSpinner');
     const testApiBtn = document.getElementById('testApiBtn');
-    const apiTestSection = document.getElementById('apiTestSection');
     const saveBtn = document.getElementById('saveBtn');
-    const consumerKeyInput = document.getElementById('consumer_key');
-    const consumerSecretInput = document.getElementById('consumer_secret');
+    const statusMessage = document.getElementById('statusMessage');
 
-    // Reset
-    apiTestSection.style.display = 'none';
-    saveBtn.style.display = 'none';
-
-    // Show loading
     testApiBtn.disabled = true;
     testBtnSpinner.style.display = 'inline-block';
+    
+    // Add loading message with unique ID
+    addStepMessage('step5', 'Verifying API connection...', 'loading', 'step5-verifying');
 
     try {
-        // Construct WooCommerce API test URL (system_status endpoint)
-        const baseUrl = url.replace(/\/$/, ''); // Remove trailing slash
+        const baseUrl = url.replace(/\/$/, '');
         const testEndpoint = `${baseUrl}/wp-json/wc/v3/system_status`;
-        
-        // Create authorization header (Basic Auth)
         const auth = btoa(`${consumerKey}:${consumerSecret}`);
         
         const response = await fetch(testEndpoint, {
@@ -437,41 +518,46 @@ document.getElementById('testApiBtn').addEventListener('click', async function (
         });
 
         const data = await response.json();
-
-        // Display status code with color
-        const statusEl = document.getElementById('apiTestStatus');
-        statusEl.textContent = response.status;
         
         if (response.ok) {
-            statusEl.style.backgroundColor = '#d4edda';
-            statusEl.style.color = '#155724';
-            statusEl.style.border = '3px solid #c3e6cb';
-            saveBtn.style.display = 'inline-block';
+            // Add success message (keep verifying message)
+            addStepMessage('step5', 'API verified successfully', 'success');
             
-            // DISABLE consumer key, consumer secret, and test button
-            consumerKeyInput.disabled = true;
-            consumerSecretInput.disabled = true;
-            testApiBtn.disabled = true;
+            if (statusMessage) {
+                statusMessage.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i>API connection successful! You can now save the configuration.';
+                statusMessage.classList.remove('alert-danger', 'alert-warning');
+                statusMessage.classList.add('alert-success');
+                statusMessage.style.display = 'block';
+            }
+            
+            saveBtn.style.display = 'inline-block';
+            updateStep('step5', true);
         } else {
-            statusEl.style.backgroundColor = '#f8d7da';
-            statusEl.style.color = '#721c24';
-            statusEl.style.border = '3px solid #f5c6cb';
+            // Remove verifying message and add error
+            removeStepMessage('step5-verifying');
+            addStepMessage('step5', 'API verification failed', 'error');
+            
+            if (statusMessage) {
+                statusMessage.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>API connection failed. Please check your credentials.';
+                statusMessage.classList.remove('alert-success', 'alert-warning');
+                statusMessage.classList.add('alert-danger');
+                statusMessage.style.display = 'block';
+            }
         }
-        
-        apiTestSection.style.display = 'block';
 
     } catch (error) {
-        const statusEl = document.getElementById('apiTestStatus');
-        statusEl.textContent = 'Error';
-        statusEl.style.backgroundColor = '#f8d7da';
-        statusEl.style.color = '#721c24';
-        statusEl.style.border = '3px solid #f5c6cb';
-        apiTestSection.style.display = 'block';
-    } finally {
-        // Reset button state only if fields are not disabled
-        if (!consumerKeyInput.disabled && !consumerSecretInput.disabled) {
-            testApiBtn.disabled = false;
+        // Remove verifying message and add error
+        removeStepMessage('step5-verifying');
+        addStepMessage('step5', 'Connection error occurred', 'error');
+        
+        if (statusMessage) {
+            statusMessage.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Connection error. Please verify your credentials and try again.';
+            statusMessage.classList.remove('alert-success', 'alert-warning');
+            statusMessage.classList.add('alert-danger');
+            statusMessage.style.display = 'block';
         }
+    } finally {
+        testApiBtn.disabled = false;
         testBtnSpinner.style.display = 'none';
     }
 });
@@ -485,6 +571,9 @@ document.getElementById('saveBtn').addEventListener('click', async function () {
 
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+    
+    // Add loading message with unique ID
+    addStepMessage('step6', 'Saving configuration...', 'loading', 'step6-saving');
 
     try {
         const response = await fetch('/integrations/save-configuration', {
@@ -502,19 +591,80 @@ document.getElementById('saveBtn').addEventListener('click', async function () {
 
         const data = await response.json();
 
-        if (response.ok && data.success && data.redirect) {
-            // ✅ Redirect to integration show page
-            window.location.href = data.redirect;
+        if (response.ok && data.success) {
+            // Add success message (keep saving message)
+            addStepMessage('step6', 'Configuration saved successfully', 'success');
+            updateStep('step6', true);
+            
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            }
         } else {
+            // Remove saving message and add error
+            removeStepMessage('step6-saving');
+            addStepMessage('step6', 'Failed to save configuration', 'error');
             saveBtn.disabled = false;
-            saveBtn.innerHTML = 'Save Configuration';
+            saveBtn.innerHTML = '<span>Save Configuration</span>';
         }
 
     } catch (error) {
+        // Remove saving message and add error
+        removeStepMessage('step6-saving');
+        addStepMessage('step6', 'Error saving configuration', 'error');
         saveBtn.disabled = false;
-        saveBtn.innerHTML = 'Save Configuration';
+        saveBtn.innerHTML = '<span>Save Configuration</span>';
     }
 });
 
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const websiteUrl = document.getElementById('website_url').value.trim();
+    const consumerKey = document.getElementById('consumer_key').value.trim();
+    const consumerSecret = document.getElementById('consumer_secret').value.trim();
+    
+    const checkBtn = document.getElementById('checkBtn');
+    checkBtn.disabled = websiteUrl.length === 0;
+
+    // Initialize step 1
+    if (websiteUrl.length > 0) {
+        addStepMessage('step1', `URL entered: ${websiteUrl}`, 'success');
+    }
+    updateStep('step1', websiteUrl.length > 0);
+    
+    // Initialize step 2
+    updateStep('step2', {{ !empty($websiteUrl) ? 'true' : 'false' }});
+    @if(!empty($websiteUrl))
+        addStepMessage('step2', 'Website verified successfully', 'success');
+    @endif
+    
+    // Initialize step 3
+    if (consumerKey.length > 0) {
+        addStepMessage('step3', `Consumer Key: ${consumerKey}`, 'success');
+    }
+    updateStep('step3', consumerKey.length > 0);
+    
+    // Initialize step 4
+    if (consumerSecret.length > 0) {
+        const masked = consumerSecret.length > 8 
+            ? `${consumerSecret.substring(0, 4)}...${consumerSecret.substring(consumerSecret.length - 4)}`
+            : '••••••••';
+        addStepMessage('step4', `Consumer Secret: ${masked}`, 'success');
+    }
+    updateStep('step4', consumerSecret.length > 0);
+    
+    // Initialize step 5
+    updateStep('step5', {{ !empty($isActive) ? 'true' : 'false' }});
+    @if(!empty($isActive))
+        addStepMessage('step5', 'API verified successfully', 'success');
+    @endif
+    
+    // Initialize step 6
+    updateStep('step6', {{ !empty($isActive) ? 'true' : 'false' }});
+    @if(!empty($isActive))
+        addStepMessage('step6', 'Configuration saved successfully', 'success');
+    @endif
+    
+    checkApiFields();
+});
 </script>
 @endpush

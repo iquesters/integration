@@ -51,7 +51,17 @@ class IntegrationConfigController extends Controller
                             'isActive'
                         )
                     );
-
+                case Constants::GAUTAMS_CHATBOT:
+                    return view(
+                        'integration::integrations.gautams_bot.configure',
+                        compact(
+                            'integration',
+                            'websiteUrl',
+                            'consumerKey',
+                            'consumerSecret',
+                            'isActive'
+                        )
+                    );
                 default:
                     abort(404, 'Integration provider not supported.');
             }
@@ -63,7 +73,7 @@ class IntegrationConfigController extends Controller
             ]);
 
             return redirect()->back()
-                ->with('error', 'Unable to load integration configure.');
+                ->with('error', $th->getMessage());
         }
     }
 
