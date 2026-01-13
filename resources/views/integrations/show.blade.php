@@ -51,7 +51,7 @@
             @foreach($integration->metas as $meta)
                 @php
                     $isUrl    = $meta->meta_key === 'url';
-                    $isSecret = Str::contains($meta->meta_key, ['token', 'key']);
+                    $isSecret = Str::contains($meta->meta_key, ['token', 'key', 'secret']);
 
                     $displayValue = $isSecret
                         ? Str::mask($meta->meta_value, '*', 0, max(strlen($meta->meta_value) - 4, 0))

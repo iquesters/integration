@@ -113,7 +113,7 @@ class Integration extends Model
 
     public function supportedInt()
     {
-        return $this->belongsTo(supportedIntegration::class, 'supported_integration_id');
+        return $this->belongsTo(SupportedIntegration::class, 'supported_integration_id');
     }
 
     /**
