@@ -72,7 +72,7 @@
                 <li class="list-group-item d-flex justify-content-between align-items-center py-1">
                     <span>{{ $api->meta_key }}</span>
 
-                    <a href="#" class="btn btn-sm text-primary">
+                    <a href="{{ route('integration.apiconf.configure', ['integrationUid' => $integration->uid, 'apiId' => $api->id]) }}" class="btn btn-sm text-primary">
                         <i class="fas fa-fw fa-cog"></i> Configure
                     </a>
                 </li>

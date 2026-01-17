@@ -27,6 +27,10 @@ Route::middleware(['web','auth'])->group(function () {
                 
                 Route::get('/{integrationUid}/apiconf', [IntegrationApiConfigController::class, 'apiconf'])->name('apiconf');
                 Route::post('/{integrationUid}/apiconf/save', [IntegrationApiConfigController::class, 'saveapiconf'])->name('apiconf.save');
+                Route::get('/{integrationUid}/{apiId}/configure', [IntegrationApiConfigController::class, 'apiConfigure'])->name('apiconf.configure');
+                Route::post('/{integrationUid}/{apiId}/save-configuration', [IntegrationApiConfigController::class, 'saveFieldMappings'])->name('apiconf.save-configuration');
+                
+                
                 Route::get('/{integrationUid}/syncdata', [IntegrationConfigController::class, 'syncdata'])->name('syncdata');
                 
             
