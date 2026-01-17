@@ -3,6 +3,47 @@
 @section('page-title', \Iquesters\Foundation\Helpers\MetaHelper::make([($integration->name ?? 'Integration'), 'Integration']))
 @section('meta-description', \Iquesters\Foundation\Helpers\MetaHelper::description('Show page of Integration'))
 
+@php
+    $tabs = [
+        [
+            'route' => 'integration.show',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'far fa-fw fa-list-alt',
+            'label' => 'Overview',
+            // 'permission' => 'view-organisations',
+        ],
+        [
+            'route' => 'integration.configure',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'fas fa-fw fa-sliders-h',
+            'label' => 'Configure',
+            // 'permission' => 'view-organisations-users',
+        ],
+        [
+            'route' => 'integration.apiconf',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'fas fa-fw fa-screwdriver-wrench',
+            'label' => 'Api Conf',
+            // 'permission' => 'view-teams'
+        ],
+        [
+            'route' => 'integration.syncdata',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'fas fa-fw fa-rotate',
+            'label' => 'Sync Data',
+            // 'permission' => 'view-teams'
+        ]
+    ];
+@endphp
+
 @section('content')
     <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="d-flex align-items-center justify-content-start gap-2">
@@ -17,12 +58,6 @@
 
         <div class="d-flex align-items-center justify-content-center gap-2">
             @if ($integration->status !== 'deleted')
-                            {{-- Configure --}}
-                <a class="btn btn-sm btn-outline-primary"
-                href="{{ route('integration.configure', $integration->uid) }}">
-                    <i class="fas fa-fw fa-sliders-h"></i>
-                    <span class="d-none d-md-inline-block ms-1">Configure</span>
-                </a>
                 <a class="btn btn-sm btn-outline-dark" href="{{ route('integration.edit', $integration->uid) }}">
                     <i class="fas fa-fw fa-edit"></i>
                     <span class="d-none d-md-inline-block ms-1">Edit</span>

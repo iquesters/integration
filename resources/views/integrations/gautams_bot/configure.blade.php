@@ -3,6 +3,47 @@
 @section('page-title', \Iquesters\Foundation\Helpers\MetaHelper::make([($integration->name ?? 'Integration'), 'gautams-chatbot', 'Integration']))
 @section('meta-description', \Iquesters\Foundation\Helpers\MetaHelper::description('Configure page of Integration'))
 
+@php
+    $tabs = [
+        [
+            'route' => 'integration.show',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'far fa-fw fa-list-alt',
+            'label' => 'Overview',
+            // 'permission' => 'view-organisations',
+        ],
+        [
+            'route' => 'integration.configure',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'fas fa-fw fa-sliders-h',
+            'label' => 'Configure',
+            // 'permission' => 'view-organisations-users',
+        ],
+        [
+            'route' => 'integration.apiconf',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'fas fa-fw fa-screwdriver-wrench',
+            'label' => 'Api Conf',
+            // 'permission' => 'view-teams'
+        ],
+        [
+            'route' => 'integration.syncdata',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'fas fa-fw fa-rotate',
+            'label' => 'Sync Data',
+            // 'permission' => 'view-teams'
+        ]
+    ];
+@endphp
+
 @section('content')
     {{-- Header --}}
     <div class="d-flex align-items-center justify-content-start gap-2 mb-3">

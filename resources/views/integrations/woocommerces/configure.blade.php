@@ -1,7 +1,48 @@
 @extends(app('app.layout'))
 
-@section('page-title', \Iquesters\Foundation\Helpers\MetaHelper::make([($integration->name ?? 'Integration'), 'Woocommerce', 'Integration']))
+@section('page-title', \Iquesters\Foundation\Helpers\MetaHelper::make(['Configure', ($integration->name ?? 'Integration'), 'Woocommerce', 'Integration']))
 @section('meta-description', \Iquesters\Foundation\Helpers\MetaHelper::description('Configure page of Integration'))
+
+@php
+    $tabs = [
+        [
+            'route' => 'integration.show',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'far fa-fw fa-list-alt',
+            'label' => 'Overview',
+            // 'permission' => 'view-organisations',
+        ],
+        [
+            'route' => 'integration.configure',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'fas fa-fw fa-sliders-h',
+            'label' => 'Configure',
+            // 'permission' => 'view-organisations-users',
+        ],
+        [
+            'route' => 'integration.apiconf',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'fas fa-fw fa-screwdriver-wrench',
+            'label' => 'Api Conf',
+            // 'permission' => 'view-teams'
+        ],
+        [
+            'route' => 'integration.syncdata',
+            'params' => [
+                'integrationUid' => $integration->uid,
+            ],
+            'icon' => 'fas fa-fw fa-rotate',
+            'label' => 'Sync Data',
+            // 'permission' => 'view-teams'
+        ]
+    ];
+@endphp
 
 @section('content')
 <div>

@@ -5,6 +5,7 @@ use Iquesters\Integration\Http\Controllers\ApiConfigurationController;
 use Iquesters\Integration\Http\Controllers\IntegrationController;
 use Iquesters\Integration\Http\Controllers\IntApiCallContactController;
 use Iquesters\Integration\Http\Controllers\IntApiResponseMatchingContactController;
+use Iquesters\Integration\Http\Controllers\IntegrationApiConfigController;
 use Iquesters\Integration\Http\Controllers\IntegrationConfigController;
 use Iquesters\Integration\Http\Controllers\WebsiteController;
 
@@ -23,6 +24,11 @@ Route::middleware(['web','auth'])->group(function () {
                 
                 Route::get('/{integrationUid}/configure', [IntegrationConfigController::class, 'configure'])->name('configure');
                 Route::post('/save-configuration', [IntegrationConfigController::class, 'store'])->name('configure.store');
+                
+                Route::get('/{integrationUid}/apiconf', [IntegrationApiConfigController::class, 'apiconf'])->name('apiconf');
+                Route::post('/{integrationUid}/apiconf/save', [IntegrationApiConfigController::class, 'saveapiconf'])->name('apiconf.save');
+                Route::get('/{integrationUid}/syncdata', [IntegrationConfigController::class, 'syncdata'])->name('syncdata');
+                
             
                 Route::post('/{integrationId}/toggle', [IntegrationController::class, 'toggleIntegration'])->name('toggle');
                 Route::get('/{integrationUid}/show', [IntegrationController::class, 'showZohoBooks'])->name('show-zoho');
