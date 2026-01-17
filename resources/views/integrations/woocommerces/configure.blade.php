@@ -69,32 +69,32 @@
 
                     <li class="mb-2">
                         Enter main domain URL
-                        <ul class="text-muted small mt-1 list-unstyled" id="step1-messages"></ul>
+                        <ul class="text-muted small mt-1 ms-2 list-unstyled" id="step1-messages"></ul>
                     </li>
 
                     <li class="mb-2">
                         Click "Check" to verify website
-                        <ul class="text-muted small mt-1 list-unstyled" id="step2-messages"></ul>
+                        <ul class="text-muted small mt-1 ms-2 list-unstyled" id="step2-messages"></ul>
                     </li>
 
                     <li class="mb-2">
                         Enter Consumer Key (CK)
-                        <ul class="text-muted small mt-1 list-unstyled" id="step3-messages"></ul>
+                        <ul class="text-muted small mt-1 ms-2 list-unstyled" id="step3-messages"></ul>
                     </li>
 
                     <li class="mb-2">
                         Enter Consumer Secret (CS)
-                        <ul class="text-muted small mt-1 list-unstyled" id="step4-messages"></ul>
+                        <ul class="text-muted small mt-1 ms-2 list-unstyled" id="step4-messages"></ul>
                     </li>
 
                     <li class="mb-2">
                         Test API connection
-                        <ul class="text-muted small mt-1 list-unstyled" id="step5-messages"></ul>
+                        <ul class="text-muted small mt-1 ms-2 list-unstyled" id="step5-messages"></ul>
                     </li>
 
                     <li class="mb-0">
                         Save configuration
-                        <ul class="text-muted small mt-1 list-unstyled" id="step6-messages"></ul>
+                        <ul class="text-muted small mt-1 ms-2 list-unstyled" id="step6-messages"></ul>
                     </li>
 
                 </ul>
@@ -349,6 +349,14 @@ function removeStepMessage(messageId) {
     }
 }
 
+// Helper function to clear all messages for a step
+function clearStepMessages(stepId) {
+    const container = document.getElementById(`${stepId}-messages`);
+    if (container) {
+        container.innerHTML = '';
+    }
+}
+
 // Step management
 function updateStep(stepId, checked) {
     const checkbox = document.getElementById(stepId);
@@ -376,6 +384,10 @@ websiteInput.addEventListener('input', function () {
     }
     
     updateStep('step1', hasValue);
+    
+    // Clear step 2 messages when URL changes (needs re-verification)
+    clearStepMessages('step2');
+    updateStep('step2', false);
 });
 
 // Enable test button when both keys are filled
@@ -407,8 +419,23 @@ function checkApiFields() {
     testApiBtn.disabled = !(key && secret);
 }
 
-document.getElementById('consumer_key').addEventListener('input', checkApiFields);
-document.getElementById('consumer_secret').addEventListener('input', checkApiFields);
+document.getElementById('consumer_key').addEventListener('input', function() {
+    checkApiFields();
+    // Clear step 5 messages when credentials change (needs re-testing)
+    clearStepMessages('step5');
+    updateStep('step5', false);
+    // Hide save button until API is re-tested
+    document.getElementById('saveBtn').style.display = 'none';
+});
+
+document.getElementById('consumer_secret').addEventListener('input', function() {
+    checkApiFields();
+    // Clear step 5 messages when credentials change (needs re-testing)
+    clearStepMessages('step5');
+    updateStep('step5', false);
+    // Hide save button until API is re-tested
+    document.getElementById('saveBtn').style.display = 'none';
+});
 
 // Website Check
 document.getElementById('checkBtn').addEventListener('click', async function () {
@@ -443,7 +470,9 @@ document.getElementById('checkBtn').addEventListener('click', async function () 
     checkBtn.disabled = true;
     btnSpinner.style.display = 'inline-block';
     
-    // Add loading message with unique ID
+    // Clear step 2 messages and add verifying message (will stay permanently)
+    clearStepMessages('step2');
+    updateStep('step2', false);
     addStepMessage('step2', 'Verifying website...', 'loading', 'step2-verifying');
 
     try {
@@ -483,8 +512,12 @@ document.getElementById('checkBtn').addEventListener('click', async function () 
             noPreview.style.display = 'none';
             previewContent.style.display = 'block';
             
-            // Add success message (keep verifying message)
+            // Change the verifying message icon to success checkmark
             if (response.status === 200) {
+                const verifyingMsg = document.getElementById('step2-verifying');
+                if (verifyingMsg) {
+                    verifyingMsg.innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i>Verifying website...';
+                }
                 addStepMessage('step2', 'Website verified successfully', 'success');
                 if (statusMessage) {
                     statusMessage.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i>Website verified successfully!';
@@ -493,6 +526,10 @@ document.getElementById('checkBtn').addEventListener('click', async function () 
                 }
                 updateStep('step2', true);
             } else {
+                const verifyingMsg = document.getElementById('step2-verifying');
+                if (verifyingMsg) {
+                    verifyingMsg.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>Verifying website...';
+                }
                 addStepMessage('step2', 'Website found but verification incomplete', 'warning');
                 if (statusMessage) {
                     statusMessage.innerHTML = '<i class="fa-solid fa-exclamation-triangle me-2"></i>Website found but verification incomplete.';
@@ -501,8 +538,11 @@ document.getElementById('checkBtn').addEventListener('click', async function () 
                 }
             }
         } else {
-            // Remove verifying message and add error
-            removeStepMessage('step2-verifying');
+            // Change verifying message icon to error
+            const verifyingMsg = document.getElementById('step2-verifying');
+            if (verifyingMsg) {
+                verifyingMsg.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>Verifying website...';
+            }
             addStepMessage('step2', 'Verification failed', 'error');
             if (statusMessage) {
                 statusMessage.innerHTML = `<i class="fa-solid fa-circle-xmark me-2"></i>${data.message || 'Unable to verify website'}`;
@@ -514,8 +554,11 @@ document.getElementById('checkBtn').addEventListener('click', async function () 
         }
 
     } catch (error) {
-        // Remove verifying message and add error
-        removeStepMessage('step2-verifying');
+        // Change verifying message icon to error
+        const verifyingMsg = document.getElementById('step2-verifying');
+        if (verifyingMsg) {
+            verifyingMsg.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>Verifying website...';
+        }
         addStepMessage('step2', 'Network error occurred', 'error');
         if (statusMessage) {
             statusMessage.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Network error. Please try again.';
@@ -539,11 +582,15 @@ document.getElementById('testApiBtn').addEventListener('click', async function (
     const saveBtn = document.getElementById('saveBtn');
     const statusMessage = document.getElementById('statusMessage');
 
+    // Clear step 5 messages and add testing message (will stay permanently)
+    clearStepMessages('step5');
+    updateStep('step5', false);
+    saveBtn.style.display = 'none';
+
     testApiBtn.disabled = true;
     testBtnSpinner.style.display = 'inline-block';
     
-    // Add loading message with unique ID
-    addStepMessage('step5', 'Verifying API connection...', 'loading', 'step5-verifying');
+    addStepMessage('step5', 'Testing API connection...', 'loading', 'step5-testing');
 
     try {
         const baseUrl = url.replace(/\/$/, '');
@@ -561,8 +608,12 @@ document.getElementById('testApiBtn').addEventListener('click', async function (
         const data = await response.json();
         
         if (response.ok) {
-            // Add success message (keep verifying message)
-            addStepMessage('step5', 'API verified successfully', 'success');
+            // Change the testing message icon to success checkmark
+            const testingMsg = document.getElementById('step5-testing');
+            if (testingMsg) {
+                testingMsg.innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i>Testing API connection...';
+            }
+            addStepMessage('step5', 'API connection verified successfully', 'success');
             
             if (statusMessage) {
                 statusMessage.innerHTML = '<i class="fa-solid fa-circle-check me-2"></i>API connection successful! You can now save the configuration.';
@@ -574,9 +625,12 @@ document.getElementById('testApiBtn').addEventListener('click', async function (
             saveBtn.style.display = 'inline-block';
             updateStep('step5', true);
         } else {
-            // Remove verifying message and add error
-            removeStepMessage('step5-verifying');
-            addStepMessage('step5', 'API verification failed', 'error');
+            // Change testing message icon to error
+            const testingMsg = document.getElementById('step5-testing');
+            if (testingMsg) {
+                testingMsg.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>Testing API connection...';
+            }
+            addStepMessage('step5', 'API connection failed - please check credentials', 'error');
             
             if (statusMessage) {
                 statusMessage.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>API connection failed. Please check your credentials.';
@@ -587,9 +641,12 @@ document.getElementById('testApiBtn').addEventListener('click', async function (
         }
 
     } catch (error) {
-        // Remove verifying message and add error
-        removeStepMessage('step5-verifying');
-        addStepMessage('step5', 'Connection error occurred', 'error');
+        // Change testing message icon to error
+        const testingMsg = document.getElementById('step5-testing');
+        if (testingMsg) {
+            testingMsg.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>Testing API connection...';
+        }
+        addStepMessage('step5', 'Connection error - unable to reach API', 'error');
         
         if (statusMessage) {
             statusMessage.innerHTML = '<i class="fa-solid fa-circle-xmark me-2"></i>Connection error. Please verify your credentials and try again.';
@@ -610,10 +667,13 @@ document.getElementById('saveBtn').addEventListener('click', async function () {
     const consumerSecret = document.getElementById('consumer_secret').value.trim();
     const saveBtn = document.getElementById('saveBtn');
 
+    // Clear step 6 messages and add saving message (will stay permanently)
+    clearStepMessages('step6');
+    updateStep('step6', false);
+
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
     
-    // Add loading message with unique ID
     addStepMessage('step6', 'Saving configuration...', 'loading', 'step6-saving');
 
     try {
@@ -633,7 +693,11 @@ document.getElementById('saveBtn').addEventListener('click', async function () {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            // Add success message (keep saving message)
+            // Change the saving message icon to success checkmark
+            const savingMsg = document.getElementById('step6-saving');
+            if (savingMsg) {
+                savingMsg.innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i>Saving configuration...';
+            }
             addStepMessage('step6', 'Configuration saved successfully', 'success');
             updateStep('step6', true);
             
@@ -641,16 +705,22 @@ document.getElementById('saveBtn').addEventListener('click', async function () {
                 window.location.href = data.redirect;
             }
         } else {
-            // Remove saving message and add error
-            removeStepMessage('step6-saving');
+            // Change saving message icon to error
+            const savingMsg = document.getElementById('step6-saving');
+            if (savingMsg) {
+                savingMsg.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>Saving configuration...';
+            }
             addStepMessage('step6', 'Failed to save configuration', 'error');
             saveBtn.disabled = false;
             saveBtn.innerHTML = '<span>Save Configuration</span>';
         }
 
     } catch (error) {
-        // Remove saving message and add error
-        removeStepMessage('step6-saving');
+        // Change saving message icon to error
+        const savingMsg = document.getElementById('step6-saving');
+        if (savingMsg) {
+            savingMsg.innerHTML = '<i class="fa-solid fa-circle-xmark text-danger me-1"></i>Saving configuration...';
+        }
         addStepMessage('step6', 'Error saving configuration', 'error');
         saveBtn.disabled = false;
         saveBtn.innerHTML = '<span>Save Configuration</span>';
@@ -672,11 +742,17 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     updateStep('step1', websiteUrl.length > 0);
     
-    // Initialize step 2
-    updateStep('step2', {{ !empty($websiteUrl) ? 'true' : 'false' }});
-    @if(!empty($websiteUrl))
+    // Initialize step 2 - Show message with appropriate icon
+    if ({{ !empty($websiteUrl) ? 'true' : 'false' }}) {
+        addStepMessage('step2', 'Website verified', 'success', 'step2-verifying');
+        // Update the icon to checkmark for previously verified
+        const verifyingMsg = document.getElementById('step2-verifying');
+        if (verifyingMsg) {
+            verifyingMsg.innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i>Website verified';
+        }
         addStepMessage('step2', 'Website verified successfully', 'success');
-    @endif
+        updateStep('step2', true);
+    }
     
     // Initialize step 3
     if (consumerKey.length > 0) {
@@ -693,17 +769,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     updateStep('step4', consumerSecret.length > 0);
     
-    // Initialize step 5
-    updateStep('step5', {{ !empty($isActive) ? 'true' : 'false' }});
-    @if(!empty($isActive))
-        addStepMessage('step5', 'API verified successfully', 'success');
-    @endif
+    // Initialize step 5 - Show message with appropriate icon
+    if ({{ !empty($isActive) ? 'true' : 'false' }}) {
+        addStepMessage('step5', 'API connection tested', 'success', 'step5-testing');
+        // Update the icon to checkmark for previously verified
+        const testingMsg = document.getElementById('step5-testing');
+        if (testingMsg) {
+            testingMsg.innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i>API connection tested';
+        }
+        addStepMessage('step5', 'API connection verified successfully', 'success');
+        updateStep('step5', true);
+    }
     
     // Initialize step 6
-    updateStep('step6', {{ !empty($isActive) ? 'true' : 'false' }});
-    @if(!empty($isActive))
+    if ({{ !empty($isActive) ? 'true' : 'false' }}) {
+        addStepMessage('step6', 'Configuration saved', 'success', 'step6-saving');
+        // Update the icon to checkmark for previously saved
+        const savingMsg = document.getElementById('step6-saving');
+        if (savingMsg) {
+            savingMsg.innerHTML = '<i class="fa-solid fa-circle-check text-success me-1"></i>Configuration saved';
+        }
         addStepMessage('step6', 'Configuration saved successfully', 'success');
-    @endif
+        updateStep('step6', true);
+    }
     
     checkApiFields();
 });
