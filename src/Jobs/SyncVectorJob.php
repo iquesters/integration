@@ -51,7 +51,7 @@ class SyncVectorJob extends BaseJob
                 ]);
 
             $response = $request->post(
-                'https://api-jobs.iquesters.com/vector/create/v2',
+                'https://stageapi-jobs.iquesters.com/vector/create/v2',
                 $payload
             );
 
