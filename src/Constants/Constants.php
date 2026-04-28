@@ -7,6 +7,7 @@ namespace Iquesters\Integration\Constants;
  */
 class Constants
 {
+    const VECTOR_API_URL = 'vector_api_url';
     const UNKNOWN = 'unknown';
     const NEW = 'new';
     const ACTIVE = 'active';

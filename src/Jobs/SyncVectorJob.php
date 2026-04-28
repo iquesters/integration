@@ -7,7 +7,9 @@ use Iquesters\Foundation\Jobs\BaseJob;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Iquesters\Integration\Constants\Constants;
 use Iquesters\Integration\Models\Integration;
+use Iquesters\Integration\Models\SupportedIntegration;
 use Iquesters\Integration\Support\VectorTelegramNotifier;
 
 class SyncVectorJob extends BaseJob
@@ -50,10 +52,7 @@ class SyncVectorJob extends BaseJob
                     'read_timeout' => 160,
                 ]);
 
-            $response = $request->post(
-                'https://stageapi-jobs.iquesters.com/vector/create/v2',
-                $payload
-            );
+            $response = $request->post($this->getVectorApiUrl(), $payload);
 
             $this->logInfo(
                 'Vector API response received' . $this->ctx([
@@ -326,5 +325,41 @@ class SyncVectorJob extends BaseJob
             0 => 'completed',
             default => 'processing',
         };
+    }
+
+    private function getVectorApiUrl(): string
+    {
+        $provider = $this->resolveSupportedChatbotIntegration();
+        $apiUrl = $provider?->getMeta(Constants::VECTOR_API_URL);
+
+        if ($apiUrl) {
+            return $apiUrl;
+        }
+
+        $this->logError('Vector API URL not found in supported integration meta' . $this->ctx([
+            'integration_id' => $this->integrationPayload['integration_id'] ?? null,
+            'provider' => Constants::GAUTAMS_CHATBOT,
+            'meta_key' => Constants::VECTOR_API_URL,
+        ]));
+
+        throw new \RuntimeException('Missing vector API URL for gautams-chatbot provider.');
+    }
+
+    private function resolveSupportedChatbotIntegration(): ?SupportedIntegration
+    {
+        try {
+            return SupportedIntegration::query()
+                ->with('metas')
+                ->where('name', Constants::GAUTAMS_CHATBOT)
+                ->first();
+        } catch (\Throwable $e) {
+            $this->logError('Failed resolving supported chatbot integration for vector API URL' . $this->ctx([
+                'integration_id' => $this->integrationPayload['integration_id'] ?? null,
+                'provider' => Constants::GAUTAMS_CHATBOT,
+                'error' => $e->getMessage(),
+            ]));
+
+            return null;
+        }
     }
 }
