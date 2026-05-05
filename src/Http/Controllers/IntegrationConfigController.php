@@ -33,6 +33,7 @@ class IntegrationConfigController extends Controller
             $consumerSecret = $integration->getMeta('consumer_secret');
             $isActive = $integration->getMeta('is_active');
             $chatbot_vector = $integration->getMeta('chatbot_vector');
+            $humanHandoverEnabled = (string) $integration->getMeta('human_handover_enabled', 'false');
 
             Log::info('Loading Integration Configuration', [
                 'integration_uid' => $integrationUid,
@@ -40,6 +41,7 @@ class IntegrationConfigController extends Controller
                 'has_consumer_key' => !empty($consumerKey),
                 'has_consumer_secret' => !empty($consumerSecret),
                 'is_active' => $isActive,
+                'human_handover_enabled' => $humanHandoverEnabled,
             ]);
 
             switch ($provider->name) {
@@ -59,7 +61,8 @@ class IntegrationConfigController extends Controller
                         'integration::integrations.gautams_bot.configure',
                         compact(
                             'integration',
-                            'chatbot_vector'
+                            'chatbot_vector',
+                            'humanHandoverEnabled'
                         )
                     );
                 default:
@@ -126,6 +129,44 @@ class IntegrationConfigController extends Controller
                 'success' => false,
                 'message' => 'Unable to save integration configuration.',
             ], 500);
+        }
+    }
+
+    public function saveGautamsBotConfiguration(Request $request, $integrationUid)
+    {
+        try {
+            $integration = Integration::where('uid', $integrationUid)
+                ->whereHas('supportedIntegration', function ($query) {
+                    $query->where('name', Constants::GAUTAMS_CHATBOT);
+                })
+                ->firstOrFail();
+
+            $userId = auth()->id() ?? 0;
+            $enabled = filter_var(
+                $request->input('human_handover_enabled', 'false'),
+                FILTER_VALIDATE_BOOLEAN
+            ) ? 'true' : 'false';
+
+            $this->saveIntegrationMeta(
+                $integration->id,
+                'human_handover_enabled',
+                $enabled,
+                $userId
+            );
+
+            return redirect()
+                ->route('integration.configure', ['integrationUid' => $integrationUid])
+                ->with('success', 'Gautams Chatbot configuration updated successfully.');
+        } catch (\Throwable $e) {
+            Log::error('Gautams Chatbot configuration save failed', [
+                'integration_uid' => $integrationUid,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()
+                ->back()
+                ->with('error', 'Failed to update Gautams Chatbot configuration.');
         }
     }
 

@@ -78,6 +78,54 @@
 
     <hr class="my-3">
 
+    <div class="mb-4">
+        <form
+            method="POST"
+            action="{{ route('integration.configure.gautams-bot', ['integrationUid' => $integration->uid]) }}"
+            id="humanHandoverConfigForm">
+            @csrf
+            <input type="hidden" name="human_handover_enabled" value="false">
+
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div>
+                    <h6 class="mb-1">Human Handover</h6>
+                    <p class="text-muted small mb-0">
+                        Enable manual human handover actions in Smart Messenger for this Gautams Chatbot integration.
+                    </p>
+                    <div
+                        id="humanHandoverUnsavedNotice"
+                        class="alert alert-warning py-2 px-3 mt-3 mb-0 small d-none"
+                        role="alert">
+                        You have unsaved changes. Click Save before leaving this page.
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center align-self-start gap-3">
+                    <div class="form-check form-switch mb-0">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            role="switch"
+                            id="humanHandoverEnabled"
+                            name="human_handover_enabled"
+                            value="true"
+                            {{ filter_var($humanHandoverEnabled ?? 'false', FILTER_VALIDATE_BOOLEAN) ? 'checked' : '' }}>
+                        <label
+                            class="form-check-label small fw-semibold d-inline-block"
+                            for="humanHandoverEnabled"
+                            style="min-width: 64px;">
+                            {{ filter_var($humanHandoverEnabled ?? 'false', FILTER_VALIDATE_BOOLEAN) ? 'Enabled' : 'Disabled' }}
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
     @include('integration::components.inc-with-props.json-config-editor', [
         'configData' => $chatbot_vector,
         // 'saveUrl' => route('#'),
@@ -85,3 +133,58 @@
         'method' => 'POST'
     ])
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const handoverForm = document.getElementById('humanHandoverConfigForm');
+        const handoverToggle = document.getElementById('humanHandoverEnabled');
+        if (!handoverForm || !handoverToggle) {
+            return;
+        }
+
+        const label = document.querySelector('label[for="humanHandoverEnabled"]');
+        const unsavedNotice = document.getElementById('humanHandoverUnsavedNotice');
+        const initialChecked = handoverToggle.checked;
+        let isDirty = false;
+
+        const syncLabel = () => {
+            if (label) {
+                label.textContent = handoverToggle.checked ? 'Enabled' : 'Disabled';
+            }
+        };
+
+        const syncDirtyState = () => {
+            isDirty = handoverToggle.checked !== initialChecked;
+
+            if (unsavedNotice) {
+                unsavedNotice.classList.toggle('d-none', !isDirty);
+            }
+        };
+
+        syncLabel();
+        syncDirtyState();
+
+        handoverToggle.addEventListener('change', function () {
+            syncLabel();
+            syncDirtyState();
+        });
+
+        handoverForm.addEventListener('submit', function () {
+            isDirty = false;
+            if (unsavedNotice) {
+                unsavedNotice.classList.add('d-none');
+            }
+        });
+
+        window.addEventListener('beforeunload', function (event) {
+            if (!isDirty) {
+                return;
+            }
+
+            event.preventDefault();
+            event.returnValue = '';
+        });
+    });
+</script>
+@endpush

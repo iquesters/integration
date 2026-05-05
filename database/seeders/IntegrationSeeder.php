@@ -93,6 +93,14 @@ class IntegrationSeeder extends BaseSeeder
                     'nullable' => true,
                     'input_type' => 'number'
                 ],
+                'human_handover_enabled' => [
+                    'meta_key' => 'human_handover_enabled',
+                    'type' => 'boolean',
+                    'label' => 'Human Handover Enabled',
+                    'required' => false,
+                    'nullable' => true,
+                    'input_type' => 'checkbox',
+                ],
             ],
             'metas' => [],
         ],

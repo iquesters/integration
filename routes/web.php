@@ -28,6 +28,7 @@ Route::middleware(['web','auth'])->group(function () {
                 Route::post('/{integrationUid}/knob/activate', [IntegrationConfigController::class, 'knobActivate'])->name('knob.activate');
                 Route::get('/{integrationUid}/configure', [IntegrationConfigController::class, 'configure'])->name('configure');
                 Route::post('/save-configuration', [IntegrationConfigController::class, 'store'])->name('configure.store');
+                Route::post('/{integrationUid}/configure/gautams-bot', [IntegrationConfigController::class, 'saveGautamsBotConfiguration'])->name('configure.gautams-bot');
                 
                 Route::get('/{integrationUid}/apiconf', [IntegrationApiConfigController::class, 'apiconf'])->name('apiconf');
                 Route::post('/{integrationUid}/apiconf/save', [IntegrationApiConfigController::class, 'saveapiconf'])->name('apiconf.save');
