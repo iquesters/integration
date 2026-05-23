@@ -7,6 +7,3 @@ return [
         'status' => 'active',
     ],
 ];
-        'status' => 'active',
-    ],
-];

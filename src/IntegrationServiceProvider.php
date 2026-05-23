@@ -16,7 +16,6 @@ class IntegrationServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-
         ConfProvider::register(Module::INTEGRATION, IntegrationConf::class);
 
         // Register the seed command
