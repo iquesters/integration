@@ -22,4 +22,5 @@ class Constants
     const SHOPIFY = 'shopify';
     const ZOHO_BOOKS = 'zoho_books';
     const GAUTAMS_CHATBOT = 'gautams-chatbot';
+    const FACEBOOK_PAGE = 'facebook-page';
 };

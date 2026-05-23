@@ -11,6 +11,9 @@ use Iquesters\Integration\Http\Controllers\WebsiteController;
 
 Route::middleware(['web','auth'])->group(function () {
     Route::post('/api/fetch-website', [WebsiteController::class, 'fetchWebsite'])->name('fetch.website');
+    Route::post('/social/facebook/connect/start', [IntegrationConfigController::class, 'startFacebookConnect'])->name('social.facebook.connect.start');
+    Route::get('/social/facebook/pages', [IntegrationConfigController::class, 'facebookPages'])->name('social.facebook.pages');
+    Route::post('/social/facebook/integration/save', [IntegrationConfigController::class, 'saveFacebookIntegration'])->name('social.facebook.integration.save');
     // Route::prefix('Organisation')->name('organisations.')->group(function () {
         // Route::prefix('{organisationUid}')->group(function () {
             Route::prefix('integrations')->name('integration.')->group(function () {

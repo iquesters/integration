@@ -65,6 +65,11 @@ class IntegrationConfigController extends Controller
                             'humanHandoverEnabled'
                         )
                     );
+                case Constants::FACEBOOK_PAGE:
+                    return view(
+                        'integration::integrations.facebook.config',
+                        compact('integration')
+                    );
                 default:
                     abort(404, 'Integration provider not supported.');
             }
@@ -167,6 +172,286 @@ class IntegrationConfigController extends Controller
             return redirect()
                 ->back()
                 ->with('error', 'Failed to update Gautams Chatbot configuration.');
+        }
+    }
+
+    public function startFacebookConnect(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'integration_id' => 'required|string',
+                'display_name' => 'nullable|string',
+                'redirect_target' => 'nullable|url',
+            ]);
+
+            $integration = Integration::where('uid', $validated['integration_id'])
+                ->whereHas('supportedIntegration', function ($query) {
+                    $query->where('name', Constants::FACEBOOK_PAGE);
+                })
+                ->firstOrFail();
+
+            $payload = [
+                'integration_id' => $integration->uid,
+                'display_name' => $validated['display_name'] ?? $integration->name,
+                'redirect_target' => $validated['redirect_target'] ?? null,
+            ];
+
+            $url = $this->facebookApiUrl($integration, 'facebook_api_url');
+            $response = Http::acceptJson()
+                ->asJson()
+                ->timeout(20)
+                ->post($url, $payload);
+            $responsePayload = $response->json();
+
+            Log::debug('Facebook connect start API attempt', [
+                'integration_uid' => $integration->uid,
+                'integration_pk' => $integration->id,
+                'attempt_integration_id' => $integration->uid,
+                'status' => $response->status(),
+                'response' => $responsePayload,
+            ]);
+
+            Log::debug('Facebook connect start API response', [
+                'integration_uid' => $integration->uid,
+                'integration_pk' => $integration->id,
+                'status' => $response->status(),
+                'response' => $responsePayload,
+            ]);
+
+            if (!$response->successful()) {
+                Log::warning('Facebook connect start API request failed', [
+                    'integration_uid' => $integration->uid,
+                    'integration_pk' => $integration->id,
+                    'status' => $response->status(),
+                    'url' => $url,
+                    'response' => $responsePayload,
+                ]);
+
+                return response()->json(
+                    is_array($responsePayload) ? $responsePayload : ['message' => 'Unable to start Facebook onboarding.'],
+                    $response->status()
+                );
+            }
+
+            return response()->json($this->withFacebookPopupDisplay($responsePayload));
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Facebook connect start proxy error', [
+                'integration_id' => $request->input('integration_id'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => $this->facebookProxyErrorMessage($e, 'Failed to start Facebook onboarding.'),
+            ], $this->facebookProxyStatusCode($e));
+        }
+    }
+
+    protected function withFacebookPopupDisplay($payload)
+    {
+        if (!is_array($payload)) {
+            return $payload;
+        }
+
+        foreach (['authorization_url', 'auth_url', 'redirect_url', 'url'] as $key) {
+            if (!empty($payload[$key]) && is_string($payload[$key])) {
+                $payload[$key] = $this->appendQueryParameter($payload[$key], 'display', 'popup');
+                break;
+            }
+        }
+
+        return $payload;
+    }
+
+    protected function appendQueryParameter(string $url, string $key, string $value): string
+    {
+        $parts = parse_url($url);
+
+        if ($parts === false || empty($parts['scheme']) || empty($parts['host'])) {
+            return $url;
+        }
+
+        $query = [];
+        parse_str($parts['query'] ?? '', $query);
+        $query[$key] = $value;
+
+        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+        $user = $parts['user'] ?? '';
+        $pass = isset($parts['pass']) ? ':' . $parts['pass'] : '';
+        $auth = $user !== '' ? $user . $pass . '@' : '';
+        $path = $parts['path'] ?? '';
+        $fragment = isset($parts['fragment']) ? '#' . $parts['fragment'] : '';
+
+        return "{$parts['scheme']}://{$auth}{$parts['host']}{$port}{$path}?" . http_build_query($query) . $fragment;
+    }
+
+    public function facebookPages(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'state' => 'required|string',
+                'integration_id' => 'required|string',
+            ]);
+
+            $integration = Integration::where('uid', $validated['integration_id'])
+                ->whereHas('supportedIntegration', function ($query) {
+                    $query->where('name', Constants::FACEBOOK_PAGE);
+                })
+                ->firstOrFail();
+
+            $url = $this->facebookApiUrl($integration, 'facebook_pages_url');
+
+            $response = Http::acceptJson()
+                ->timeout(20)
+                ->get($url, [
+                    'state' => $validated['state'],
+                ]);
+
+            $responsePayload = $response->json();
+
+            if (!$response->successful()) {
+                Log::warning('Facebook pages API request failed', [
+                    'status' => $response->status(),
+                    'url' => $url,
+                    'response' => $responsePayload,
+                ]);
+
+                return response()->json(
+                    is_array($responsePayload) ? $responsePayload : ['message' => 'Unable to load Facebook pages.'],
+                    $response->status()
+                );
+            }
+
+            return response()->json($responsePayload);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Facebook pages proxy error', [
+                'state' => $request->query('state'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => $this->facebookProxyErrorMessage($e, 'Failed to load Facebook pages.'),
+            ], $this->facebookProxyStatusCode($e));
+        }
+    }
+
+    public function saveFacebookIntegration(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'state' => 'required_without:page_access_token|nullable|string',
+                'page_id' => 'required|string',
+                'page_name' => 'nullable|string',
+                'integration_id' => 'required|string',
+                'page_access_token' => 'required_without:state|nullable|string',
+                'user_access_token' => 'nullable|string',
+            ]);
+
+            $integration = Integration::where('uid', $validated['integration_id'])
+                ->whereHas('supportedIntegration', function ($query) {
+                    $query->where('name', Constants::FACEBOOK_PAGE);
+                })
+                ->firstOrFail();
+
+            if (!empty($validated['page_access_token'])) {
+                $userId = auth()->id() ?? 0;
+                $pageName = $validated['page_name'] ?? null;
+
+                $this->saveIntegrationMeta($integration->id, 'facebook_page_id', $validated['page_id'], $userId);
+                $this->saveIntegrationMeta($integration->id, 'facebook_page_name', $pageName, $userId);
+                $this->saveIntegrationMeta($integration->id, 'facebook_page_access_token', $validated['page_access_token'], $userId);
+
+                if (!empty($validated['user_access_token'])) {
+                    $this->saveIntegrationMeta($integration->id, 'facebook_user_access_token', $validated['user_access_token'], $userId);
+                }
+
+                $this->saveIntegrationMeta($integration->id, 'facebook_connection_status', 'connected', $userId);
+
+                $integration->update([
+                    'status' => Constants::ACTIVE,
+                    'updated_by' => $userId,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'page_id' => $validated['page_id'],
+                    'page_name' => $pageName,
+                    'redirect' => route('integration.configure', ['integrationUid' => $integration->uid]),
+                ]);
+            }
+
+            $payload = [
+                'state' => $validated['state'],
+                'page_id' => $validated['page_id'],
+            ];
+
+            $url = $this->facebookApiUrl($integration, 'facebook_integration_save_url');
+
+            $response = Http::acceptJson()
+                ->asJson()
+                ->timeout(20)
+                ->post($url, $payload);
+
+            $responsePayload = $response->json();
+
+            if (!$response->successful()) {
+                Log::warning('Facebook integration save API request failed', [
+                    'integration_uid' => $integration->uid,
+                    'integration_pk' => $integration->id,
+                    'status' => $response->status(),
+                    'url' => $url,
+                    'response' => $responsePayload,
+                ]);
+
+                return response()->json(
+                    is_array($responsePayload) ? $responsePayload : ['message' => 'Unable to save Facebook integration.'],
+                    $response->status()
+                );
+            }
+
+            $userId = auth()->id() ?? 0;
+            $pageName = data_get($responsePayload, 'page_name')
+                ?? data_get($responsePayload, 'page.name')
+                ?? ($validated['page_name'] ?? null);
+
+            $this->saveIntegrationMeta($integration->id, 'facebook_page_id', $validated['page_id'], $userId);
+            $this->saveIntegrationMeta($integration->id, 'facebook_page_name', $pageName, $userId);
+            $this->saveIntegrationMeta($integration->id, 'facebook_connection_status', 'connected', $userId);
+
+            $integration->update([
+                'status' => Constants::ACTIVE,
+                'updated_by' => $userId,
+            ]);
+
+            return response()->json(
+                is_array($responsePayload)
+                    ? array_merge($responsePayload, [
+                        'success' => true,
+                        'redirect' => route('integration.configure', ['integrationUid' => $integration->uid]),
+                    ])
+                    : [
+                        'success' => true,
+                        'redirect' => route('integration.configure', ['integrationUid' => $integration->uid]),
+                    ]
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Facebook integration save proxy error', [
+                'integration_id' => $request->input('integration_id'),
+                'page_id' => $request->input('page_id'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => $this->facebookProxyErrorMessage($e, 'Failed to save Facebook integration.'),
+            ], $this->facebookProxyStatusCode($e));
         }
     }
 
@@ -397,5 +682,30 @@ class IntegrationConfigController extends Controller
                 'updated_by' => $userId,
             ]
         );
+    }
+
+    protected function facebookApiUrl(Integration $integration, string $metaKey): string
+    {
+        $url = trim((string) $integration->supportedIntegration?->getMeta($metaKey));
+
+        if ($url === '') {
+            throw new \RuntimeException("{$metaKey} is not configured.");
+        }
+
+        return $url;
+    }
+
+    protected function facebookProxyErrorMessage(\Throwable $e, string $fallback): string
+    {
+        return str_ends_with($e->getMessage(), 'is not configured.')
+            ? $e->getMessage()
+            : $fallback;
+    }
+
+    protected function facebookProxyStatusCode(\Throwable $e): int
+    {
+        return str_ends_with($e->getMessage(), 'is not configured.')
+            ? 503
+            : 500;
     }
 }
