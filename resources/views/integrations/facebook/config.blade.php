@@ -14,13 +14,12 @@ $displayMetas = $integration->metas->reject(fn ($meta) => in_array($meta->meta_k
 $facebookPageName = $integration->getMeta('facebook_page_name');
 $facebookPageId = $integration->getMeta('facebook_page_id');
 $isFacebookConnected = !empty($facebookPageId);
-$apiUtilBaseUrl = trim((string) ($integration->supportedInt?->getMeta('facebook_api_url') ?: config('integration.api_util_base_url', '')));
 $facebookAppId = trim((string) (
     $integration->getMeta('facebook_app_id')
     ?: $integration->supportedInt?->getMeta('facebook_app_id')
     ?: config('integration.facebook_app_id', '1466862378012896')
 ));
-$isFacebookBackendConfigured = $apiUtilBaseUrl !== '' || $facebookAppId !== '';
+$isFacebookBackendConfigured = $facebookAppId !== '';
 @endphp
 @section('content')
 <div class="d-flex align-items-center justify-content-start gap-2 mb-3">
@@ -29,17 +28,6 @@ $isFacebookBackendConfigured = $apiUtilBaseUrl !== '' || $facebookAppId !== '';
         {!! $integration->supportedInt?->getMeta('icon') !!}
     </h5>
     <x-userinterface::status :status="$integration->status" />
-</div>
-<div class="border rounded p-3 mb-3">
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <div>
-            <h6 class="mb-1">Facebook Page Configuration</h6>
-            <div class="text-muted small">{{ $integration->supportedInt?->getMeta('description') }}</div>
-        </div>
-        <span class="badge {{ $isFacebookConnected ? 'bg-success' : 'bg-primary' }}">
-            {{ $isFacebookConnected ? 'Connected' : 'Facebook Page' }}
-        </span>
-    </div>
 </div>
 <div class="border rounded p-3 mb-3">
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
@@ -56,7 +44,7 @@ $isFacebookBackendConfigured = $apiUtilBaseUrl !== '' || $facebookAppId !== '';
             @endif
             @unless ($isFacebookBackendConfigured)
                 <div class="text-danger small mt-2">
-                    Set INTEGRATION_API_UTIL_BASE_URL in messenger/.env to enable Facebook onboarding.
+                    Configure a Facebook App ID to enable Facebook onboarding.
                 </div>
             @endunless
         </div>
@@ -243,8 +231,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const getPageName = (page) => page.page_name || page.name || page.display_name || 'Facebook Page';
     const getAuthorizationUrl = (data) => data.authorization_url || data.auth_url || data.redirect_url || data.url || '';
     const getFacebookPopupPosition = () => {
-        const width = 560;
-        const height = 720;
+        const maxWidth = window.screen?.availWidth || window.screen?.width || 1280;
+        const maxHeight = window.screen?.availHeight || window.screen?.height || 900;
+        const width = Math.min(620, Math.max(520, maxWidth - 80));
+        const height = Math.min(760, Math.max(680, maxHeight - 80));
         const browserLeft = typeof window.screenLeft === 'number'
             ? window.screenLeft
             : (typeof window.screenX === 'number' ? window.screenX : 0);
@@ -577,6 +567,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const url = new URL(connectButton.dataset.pagesUrl, window.location.origin);
             url.searchParams.set('state', state);
+            url.searchParams.set('integration_id', connectButton.dataset.integrationId);
 
             const response = await fetch(url.toString(), {
                 headers: {

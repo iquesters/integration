@@ -7,7 +7,6 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Http;
 use Iquesters\Integration\Models\Integration;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Iquesters\Integration\Constants\Constants;
 use Iquesters\Integration\Jobs\SyncVectorJob;
 use Iquesters\Integration\Models\IntegrationMeta;
@@ -192,47 +191,25 @@ class IntegrationConfigController extends Controller
                 ->firstOrFail();
 
             $payload = [
-                'integration_id' => $this->facebookConnectIntegrationIds($integration)[0],
+                'integration_id' => $integration->uid,
                 'display_name' => $validated['display_name'] ?? $integration->name,
                 'redirect_target' => $validated['redirect_target'] ?? null,
             ];
 
-            $baseUrl = $this->apiUtilBaseUrl($integration);
-            $url = "{$baseUrl}/social/facebook/connect/start";
-            $candidateIntegrationIds = $this->facebookConnectIntegrationIds($integration);
-            $attempts = [];
-            $response = null;
-            $responsePayload = null;
+            $url = $this->facebookApiUrl($integration, 'facebook_api_url');
+            $response = Http::acceptJson()
+                ->asJson()
+                ->timeout(20)
+                ->post($url, $payload);
+            $responsePayload = $response->json();
 
-            foreach ($candidateIntegrationIds as $candidateIntegrationId) {
-                $attemptPayload = array_merge($payload, [
-                    'integration_id' => $candidateIntegrationId,
-                ]);
-
-                $response = Http::acceptJson()
-                    ->withHeaders(['X-Request-ID' => (string) Str::uuid()])
-                    ->asJson()
-                    ->timeout(20)
-                    ->post($url, $attemptPayload);
-
-                $responsePayload = $response->json();
-                $attempts[] = [
-                    'integration_id' => $candidateIntegrationId,
-                    'status' => $response->status(),
-                ];
-
-                Log::debug('Facebook connect start API attempt', [
-                    'integration_uid' => $integration->uid,
-                    'integration_pk' => $integration->id,
-                    'attempt_integration_id' => $candidateIntegrationId,
-                    'status' => $response->status(),
-                    'response' => $responsePayload,
-                ]);
-
-                if ($response->successful() || !$this->shouldRetryFacebookConnectWithNextId($responsePayload)) {
-                    break;
-                }
-            }
+            Log::debug('Facebook connect start API attempt', [
+                'integration_uid' => $integration->uid,
+                'integration_pk' => $integration->id,
+                'attempt_integration_id' => $integration->uid,
+                'status' => $response->status(),
+                'response' => $responsePayload,
+            ]);
 
             Log::debug('Facebook connect start API response', [
                 'integration_uid' => $integration->uid,
@@ -251,12 +228,7 @@ class IntegrationConfigController extends Controller
                 ]);
 
                 return response()->json(
-                    is_array($responsePayload)
-                        ? array_merge($responsePayload, ['attempted_integration_ids' => $attempts])
-                        : [
-                            'message' => 'Unable to start Facebook onboarding.',
-                            'attempted_integration_ids' => $attempts,
-                        ],
+                    is_array($responsePayload) ? $responsePayload : ['message' => 'Unable to start Facebook onboarding.'],
                     $response->status()
                 );
             }
@@ -275,40 +247,6 @@ class IntegrationConfigController extends Controller
                 'message' => $this->facebookProxyErrorMessage($e, 'Failed to start Facebook onboarding.'),
             ], $this->facebookProxyStatusCode($e));
         }
-    }
-
-    protected function facebookConnectIntegrationIds(Integration $integration): array
-    {
-        $configuredIds = [
-            $integration->getMeta('facebook_api_integration_id'),
-            $integration->supportedIntegration?->getMeta('facebook_api_integration_id'),
-        ];
-
-        $configuredIds = array_values(array_unique(array_filter(
-            array_map(fn ($id) => is_null($id) ? null : (string) $id, $configuredIds),
-            fn ($id) => $id !== null && trim($id) !== ''
-        )));
-
-        if (!empty($configuredIds)) {
-            return $configuredIds;
-        }
-
-        $candidateIds = [
-            $integration->getMeta('ota_uid'),
-            $integration->getMeta('ota_integration_id'),
-            $integration->getMeta('ota_integration_uid'),
-            $integration->getMeta('chatbot_integration_id'),
-            $integration->getMeta('chatbot_integration_uid'),
-            $integration->getMeta('external_integration_id'),
-            $integration->getMeta('external_integration_uid'),
-            $integration->uid,
-            (string) $integration->id,
-        ];
-
-        return array_values(array_unique(array_filter(
-            array_map(fn ($id) => is_null($id) ? null : (string) $id, $candidateIds),
-            fn ($id) => $id !== null && trim($id) !== ''
-        )));
     }
 
     protected function withFacebookPopupDisplay($payload)
@@ -349,26 +287,21 @@ class IntegrationConfigController extends Controller
         return "{$parts['scheme']}://{$auth}{$parts['host']}{$port}{$path}?" . http_build_query($query) . $fragment;
     }
 
-    protected function shouldRetryFacebookConnectWithNextId($responsePayload): bool
-    {
-        $encodedPayload = is_array($responsePayload)
-            ? strtolower(json_encode($responsePayload))
-            : strtolower((string) $responsePayload);
-
-        return str_contains($encodedPayload, 'integration_not_found')
-            || str_contains($encodedPayload, 'valid integer')
-            || str_contains($encodedPayload, 'unable to parse string as an integer');
-    }
-
     public function facebookPages(Request $request)
     {
         try {
             $validated = $request->validate([
                 'state' => 'required|string',
+                'integration_id' => 'required|string',
             ]);
 
-            $baseUrl = $this->apiUtilBaseUrl();
-            $url = "{$baseUrl}/social/facebook/pages";
+            $integration = Integration::where('uid', $validated['integration_id'])
+                ->whereHas('supportedIntegration', function ($query) {
+                    $query->where('name', Constants::FACEBOOK_PAGE);
+                })
+                ->firstOrFail();
+
+            $url = $this->facebookApiUrl($integration, 'facebook_pages_url');
 
             $response = Http::acceptJson()
                 ->timeout(20)
@@ -457,8 +390,7 @@ class IntegrationConfigController extends Controller
                 'page_id' => $validated['page_id'],
             ];
 
-            $baseUrl = $this->apiUtilBaseUrl($integration);
-            $url = "{$baseUrl}/social/facebook/integration/save";
+            $url = $this->facebookApiUrl($integration, 'facebook_integration_save_url');
 
             $response = Http::acceptJson()
                 ->asJson()
@@ -752,28 +684,27 @@ class IntegrationConfigController extends Controller
         );
     }
 
-    protected function apiUtilBaseUrl(?Integration $integration = null): string
+    protected function facebookApiUrl(Integration $integration, string $metaKey): string
     {
-        $facebookApiUrl = $integration?->supportedIntegration?->getMeta('facebook_api_url');
-        $baseUrl = trim((string) ($facebookApiUrl ?: config('integration.api_util_base_url') ?: env('INTEGRATION_API_UTIL_BASE_URL', '')));
+        $url = trim((string) $integration->supportedIntegration?->getMeta($metaKey));
 
-        if ($baseUrl === '') {
-            throw new \RuntimeException('INTEGRATION_API_UTIL_BASE_URL is not configured.');
+        if ($url === '') {
+            throw new \RuntimeException("{$metaKey} is not configured.");
         }
 
-        return rtrim($baseUrl, '/');
+        return $url;
     }
 
     protected function facebookProxyErrorMessage(\Throwable $e, string $fallback): string
     {
-        return $e->getMessage() === 'INTEGRATION_API_UTIL_BASE_URL is not configured.'
+        return str_ends_with($e->getMessage(), 'is not configured.')
             ? $e->getMessage()
             : $fallback;
     }
 
     protected function facebookProxyStatusCode(\Throwable $e): int
     {
-        return $e->getMessage() === 'INTEGRATION_API_UTIL_BASE_URL is not configured.'
+        return str_ends_with($e->getMessage(), 'is not configured.')
             ? 503
             : 500;
     }

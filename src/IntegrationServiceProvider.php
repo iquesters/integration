@@ -16,7 +16,6 @@ class IntegrationServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__ . '/../config/integration.php', 'integration');
 
         ConfProvider::register(Module::INTEGRATION, IntegrationConf::class);
 
