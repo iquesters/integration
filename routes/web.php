@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Iquesters\Integration\Http\Controllers\ApiConfigurationController;
+use Iquesters\Integration\Http\Controllers\FacebookConnectCompletionController;
 use Iquesters\Integration\Http\Controllers\IntegrationController;
 use Iquesters\Integration\Http\Controllers\IntApiCallContactController;
 use Iquesters\Integration\Http\Controllers\IntApiResponseMatchingContactController;
@@ -12,6 +13,7 @@ use Iquesters\Integration\Http\Controllers\WebsiteController;
 Route::middleware(['web','auth'])->group(function () {
     Route::post('/api/fetch-website', [WebsiteController::class, 'fetchWebsite'])->name('fetch.website');
     Route::post('/social/facebook/connect/start', [IntegrationConfigController::class, 'startFacebookConnect'])->name('social.facebook.connect.start');
+    Route::get('/social/facebook/connect/complete', FacebookConnectCompletionController::class)->name('social.facebook.connect.complete');
     Route::get('/social/facebook/pages', [IntegrationConfigController::class, 'facebookPages'])->name('social.facebook.pages');
     Route::post('/social/facebook/integration/save', [IntegrationConfigController::class, 'saveFacebookIntegration'])->name('social.facebook.integration.save');
     // Route::prefix('Organisation')->name('organisations.')->group(function () {
