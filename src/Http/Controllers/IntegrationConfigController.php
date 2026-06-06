@@ -363,6 +363,14 @@ class IntegrationConfigController extends Controller
                 'request_id' => $responsePayload['request_id'] ?? null,
             ]);
 
+            if ($integration && !empty($responsePayload['page_id'])) {
+                $this->syncFacebookConnectionMeta(
+                    $integration,
+                    $responsePayload,
+                    auth()->id() ?? 0
+                );
+            }
+
             return response()->json(
                 is_array($responsePayload)
                     ? array_merge($responsePayload, [
@@ -631,6 +639,46 @@ class IntegrationConfigController extends Controller
                 'updated_by' => $userId,
             ]
         );
+    }
+
+    protected function syncFacebookConnectionMeta(
+        Integration $integration,
+        array $responsePayload,
+        int $userId
+    ): void {
+        try {
+            $pageId = (string) ($responsePayload['page_id'] ?? '');
+            $pageName = $responsePayload['page_name'] ?? null;
+            $facebookIntegrationId = $responsePayload['facebook_integration_id'] ?? null;
+
+            if ($pageId === '') {
+                return;
+            }
+
+            $this->saveIntegrationMeta($integration->id, 'facebook_connection_status', 'connected', $userId);
+            $this->saveIntegrationMeta($integration->id, 'facebook_page_id', $pageId, $userId);
+            $this->saveIntegrationMeta($integration->id, 'facebook_page_name', $pageName, $userId);
+            if (!empty($facebookIntegrationId)) {
+                $this->saveIntegrationMeta($integration->id, 'facebook_integration_id', $facebookIntegrationId, $userId);
+            }
+
+            $integration->update([
+                'status' => Constants::ACTIVE,
+                'updated_by' => $userId,
+            ]);
+
+            Log::info('facebook_integration_meta_synced', [
+                'user_id' => auth()->id(),
+                'integration_uid' => $integration->uid,
+                'page_id' => $pageId,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('facebook_integration_meta_sync_failed', [
+                'user_id' => auth()->id(),
+                'integration_uid' => $integration->uid,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     protected function facebookApiUrl(Integration $integration, string $metaKey): string
