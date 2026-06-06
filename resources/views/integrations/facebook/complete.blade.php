@@ -220,6 +220,7 @@ document.addEventListener('DOMContentLoaded', function () {
             successPanel.classList.remove('d-none');
             reconnectLink.textContent = 'Back to integrations';
             reconnectLink.classList.remove('d-none');
+            setTimeout(() => { window.location.href = @json($integrationsUrl); }, 1500);
         } catch (error) {
             showAlert('danger', 'Facebook setup is temporarily unavailable. Please try again.', true, false);
         } finally {
