@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\Http;
 use Iquesters\Integration\Models\Integration;
 use Illuminate\Support\Facades\Log;
 use Iquesters\Integration\Constants\Constants;
+use Iquesters\Integration\Exceptions\ChatbotUtilFacebookException;
 use Iquesters\Integration\Jobs\SyncVectorJob;
 use Iquesters\Integration\Models\IntegrationMeta;
+use Iquesters\Integration\Services\ChatbotUtilFacebookClient;
 
 class IntegrationConfigController extends Controller
 {
@@ -189,7 +191,7 @@ class IntegrationConfigController extends Controller
         }
     }
 
-    public function startFacebookConnect(Request $request)
+    public function startFacebookConnect(Request $request, ChatbotUtilFacebookClient $facebookClient)
     {
         try {
             $validated = $request->validate([
@@ -204,57 +206,40 @@ class IntegrationConfigController extends Controller
                 })
                 ->firstOrFail();
 
-            $payload = [
-                'integration_id' => $integration->uid,
-                'display_name' => $validated['display_name'] ?? $integration->name,
-                'redirect_target' => $validated['redirect_target'] ?? null,
-            ];
+            $responsePayload = $facebookClient->startFacebookConnect(
+                $integration->uid,
+                $validated['display_name'] ?? 'Facebook'
+            );
+            $utilStatus = $responsePayload['_util_http_status'] ?? null;
+            unset($responsePayload['_util_http_status']);
 
-            $url = $this->facebookApiUrl($integration, 'facebook_api_url');
-            $response = Http::acceptJson()
-                ->asJson()
-                ->timeout(20)
-                ->post($url, $payload);
-            $responsePayload = $response->json();
-
-            Log::debug('Facebook connect start API attempt', [
+            Log::info('facebook_connect_start_success', [
                 'integration_uid' => $integration->uid,
                 'integration_pk' => $integration->id,
-                'attempt_integration_id' => $integration->uid,
-                'status' => $response->status(),
-                'response' => $responsePayload,
+                'util_http_status' => $utilStatus,
+                'request_id' => $responsePayload['request_id'] ?? null,
             ]);
 
-            Log::debug('Facebook connect start API response', [
-                'integration_uid' => $integration->uid,
-                'integration_pk' => $integration->id,
-                'status' => $response->status(),
-                'response' => $responsePayload,
-            ]);
-
-            if (!$response->successful()) {
-                Log::warning('Facebook connect start API request failed', [
-                    'integration_uid' => $integration->uid,
-                    'integration_pk' => $integration->id,
-                    'status' => $response->status(),
-                    'url' => $url,
-                    'response' => $responsePayload,
-                ]);
-
-                return response()->json(
-                    is_array($responsePayload) ? $responsePayload : ['message' => 'Unable to start Facebook onboarding.'],
-                    $response->status()
-                );
-            }
-
-            return response()->json($this->withFacebookPopupDisplay($responsePayload));
+            return response()->json($responsePayload);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
+        } catch (ChatbotUtilFacebookException $e) {
+            Log::warning('facebook_connect_start_failed', [
+                'integration_id' => $request->input('integration_id'),
+                'util_http_status' => $e->status(),
+                'safe_error_code' => $e->errorCode(),
+                'request_id' => $e->requestId(),
+            ]);
+
+            return response()->json([
+                'message' => $this->facebookProxyErrorMessage($e, 'Failed to start Facebook onboarding.'),
+                'error_code' => $e->errorCode(),
+                'request_id' => $e->requestId(),
+            ], $e->status());
         } catch (\Throwable $e) {
             Log::error('Facebook connect start proxy error', [
                 'integration_id' => $request->input('integration_id'),
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
@@ -263,208 +248,133 @@ class IntegrationConfigController extends Controller
         }
     }
 
-    protected function withFacebookPopupDisplay($payload)
-    {
-        if (!is_array($payload)) {
-            return $payload;
-        }
-
-        foreach (['authorization_url', 'auth_url', 'redirect_url', 'url'] as $key) {
-            if (!empty($payload[$key]) && is_string($payload[$key])) {
-                $payload[$key] = $this->appendQueryParameter($payload[$key], 'display', 'popup');
-                break;
-            }
-        }
-
-        return $payload;
-    }
-
-    protected function appendQueryParameter(string $url, string $key, string $value): string
-    {
-        $parts = parse_url($url);
-
-        if ($parts === false || empty($parts['scheme']) || empty($parts['host'])) {
-            return $url;
-        }
-
-        $query = [];
-        parse_str($parts['query'] ?? '', $query);
-        $query[$key] = $value;
-
-        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
-        $user = $parts['user'] ?? '';
-        $pass = isset($parts['pass']) ? ':' . $parts['pass'] : '';
-        $auth = $user !== '' ? $user . $pass . '@' : '';
-        $path = $parts['path'] ?? '';
-        $fragment = isset($parts['fragment']) ? '#' . $parts['fragment'] : '';
-
-        return "{$parts['scheme']}://{$auth}{$parts['host']}{$port}{$path}?" . http_build_query($query) . $fragment;
-    }
-
-    public function facebookPages(Request $request)
+    public function facebookPages(Request $request, ChatbotUtilFacebookClient $facebookClient)
     {
         try {
             $validated = $request->validate([
                 'state' => 'required|string',
-                'integration_id' => 'required|string',
             ]);
 
-            $integration = Integration::where('uid', $validated['integration_id'])
-                ->whereHas('supportedIntegration', function ($query) {
-                    $query->where('name', Constants::FACEBOOK_PAGE);
-                })
-                ->firstOrFail();
+            Log::info('facebook_pages_fetch_started', [
+                'user_id' => auth()->id(),
+                'state_ref' => $this->stateRef($validated['state']),
+            ]);
 
-            $url = $this->facebookApiUrl($integration, 'facebook_pages_url');
+            $responsePayload = $facebookClient->getFacebookPages($validated['state']);
+            $utilStatus = $responsePayload['_util_http_status'] ?? null;
+            unset($responsePayload['_util_http_status']);
 
-            $response = Http::acceptJson()
-                ->timeout(20)
-                ->get($url, [
-                    'state' => $validated['state'],
-                ]);
-
-            $responsePayload = $response->json();
-
-            if (!$response->successful()) {
-                Log::warning('Facebook pages API request failed', [
-                    'status' => $response->status(),
-                    'url' => $url,
-                    'response' => $responsePayload,
-                ]);
-
-                return response()->json(
-                    is_array($responsePayload) ? $responsePayload : ['message' => 'Unable to load Facebook pages.'],
-                    $response->status()
-                );
-            }
+            Log::info('facebook_pages_fetch_success', [
+                'user_id' => auth()->id(),
+                'state_ref' => $this->stateRef($validated['state']),
+                'util_http_status' => $utilStatus,
+                'page_count' => count($this->normalizeFacebookPages($responsePayload)),
+                'request_id' => $responsePayload['request_id'] ?? null,
+            ]);
 
             return response()->json($responsePayload);
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
-        } catch (\Throwable $e) {
-            Log::error('Facebook pages proxy error', [
-                'state' => $request->query('state'),
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+        } catch (ChatbotUtilFacebookException $e) {
+            $state = (string) $request->query('state', '');
+
+            Log::warning('facebook_pages_fetch_failed', [
+                'user_id' => auth()->id(),
+                'state_ref' => $this->stateRef($state),
+                'util_http_status' => $e->status(),
+                'safe_error_code' => $e->errorCode(),
+                'request_id' => $e->requestId(),
             ]);
 
             return response()->json([
-                'message' => $this->facebookProxyErrorMessage($e, 'Failed to load Facebook pages.'),
+                'message' => $this->facebookPagesUserMessage($e),
+                'error_code' => $e->errorCode(),
+                'request_id' => $e->requestId(),
+            ], $e->status());
+        } catch (\Throwable $e) {
+            Log::error('Facebook pages proxy error', [
+                'state_ref' => $this->stateRef((string) $request->query('state', '')),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Facebook setup is temporarily unavailable. Please try again.',
             ], $this->facebookProxyStatusCode($e));
         }
     }
 
-    public function saveFacebookIntegration(Request $request)
+    public function saveFacebookIntegration(Request $request, ChatbotUtilFacebookClient $facebookClient)
     {
         try {
             $validated = $request->validate([
-                'state' => 'required_without:page_access_token|nullable|string',
+                'state' => 'required|string',
                 'page_id' => 'required|string',
-                'page_name' => 'nullable|string',
-                'integration_id' => 'required|string',
-                'page_access_token' => 'required_without:state|nullable|string',
-                'user_access_token' => 'nullable|string',
             ]);
 
-            $integration = Integration::where('uid', $validated['integration_id'])
-                ->whereHas('supportedIntegration', function ($query) {
-                    $query->where('name', Constants::FACEBOOK_PAGE);
-                })
-                ->firstOrFail();
+            Log::info('facebook_integration_save_started', [
+                'user_id' => auth()->id(),
+                'state_ref' => $this->stateRef($validated['state']),
+                'selected_page_id' => $validated['page_id'],
+            ]);
 
-            if (!empty($validated['page_access_token'])) {
-                $userId = auth()->id() ?? 0;
-                $pageName = $validated['page_name'] ?? null;
+            Log::info('facebook_page_selected', [
+                'user_id' => auth()->id(),
+                'state_ref' => $this->stateRef($validated['state']),
+                'selected_page_id' => $validated['page_id'],
+            ]);
 
-                $this->saveIntegrationMeta($integration->id, 'facebook_page_id', $validated['page_id'], $userId);
-                $this->saveIntegrationMeta($integration->id, 'facebook_page_name', $pageName, $userId);
-                $this->saveIntegrationMeta($integration->id, 'facebook_page_access_token', $validated['page_access_token'], $userId);
+            $responsePayload = $facebookClient->saveFacebookIntegration(
+                $validated['state'],
+                $validated['page_id']
+            );
+            $utilStatus = $responsePayload['_util_http_status'] ?? null;
+            unset($responsePayload['_util_http_status']);
 
-                if (!empty($validated['user_access_token'])) {
-                    $this->saveIntegrationMeta($integration->id, 'facebook_user_access_token', $validated['user_access_token'], $userId);
-                }
-
-                $this->saveIntegrationMeta($integration->id, 'facebook_connection_status', 'connected', $userId);
-
-                $integration->update([
-                    'status' => Constants::ACTIVE,
-                    'updated_by' => $userId,
-                ]);
-
-                return response()->json([
-                    'success' => true,
-                    'page_id' => $validated['page_id'],
-                    'page_name' => $pageName,
-                    'redirect' => route('integration.configure', ['integrationUid' => $integration->uid]),
-                ]);
-            }
-
-            $payload = [
-                'state' => $validated['state'],
-                'page_id' => $validated['page_id'],
-            ];
-
-            $url = $this->facebookApiUrl($integration, 'facebook_integration_save_url');
-
-            $response = Http::acceptJson()
-                ->asJson()
-                ->timeout(20)
-                ->post($url, $payload);
-
-            $responsePayload = $response->json();
-
-            if (!$response->successful()) {
-                Log::warning('Facebook integration save API request failed', [
-                    'integration_uid' => $integration->uid,
-                    'integration_pk' => $integration->id,
-                    'status' => $response->status(),
-                    'url' => $url,
-                    'response' => $responsePayload,
-                ]);
-
-                return response()->json(
-                    is_array($responsePayload) ? $responsePayload : ['message' => 'Unable to save Facebook integration.'],
-                    $response->status()
-                );
-            }
-
-            $userId = auth()->id() ?? 0;
-            $pageName = data_get($responsePayload, 'page_name')
-                ?? data_get($responsePayload, 'page.name')
-                ?? ($validated['page_name'] ?? null);
-
-            $this->saveIntegrationMeta($integration->id, 'facebook_page_id', $validated['page_id'], $userId);
-            $this->saveIntegrationMeta($integration->id, 'facebook_page_name', $pageName, $userId);
-            $this->saveIntegrationMeta($integration->id, 'facebook_connection_status', 'connected', $userId);
-
-            $integration->update([
-                'status' => Constants::ACTIVE,
-                'updated_by' => $userId,
+            Log::info('facebook_integration_save_success', [
+                'user_id' => auth()->id(),
+                'state_ref' => $this->stateRef($validated['state']),
+                'selected_page_id' => $validated['page_id'],
+                'util_http_status' => $utilStatus,
+                'request_id' => $responsePayload['request_id'] ?? null,
             ]);
 
             return response()->json(
                 is_array($responsePayload)
                     ? array_merge($responsePayload, [
                         'success' => true,
-                        'redirect' => route('integration.configure', ['integrationUid' => $integration->uid]),
                     ])
                     : [
                         'success' => true,
-                        'redirect' => route('integration.configure', ['integrationUid' => $integration->uid]),
                     ]
             );
         } catch (\Illuminate\Validation\ValidationException $e) {
             throw $e;
-        } catch (\Throwable $e) {
-            Log::error('Facebook integration save proxy error', [
-                'integration_id' => $request->input('integration_id'),
-                'page_id' => $request->input('page_id'),
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
+        } catch (ChatbotUtilFacebookException $e) {
+            $state = (string) $request->input('state', '');
+
+            Log::warning('facebook_integration_save_failed', [
+                'user_id' => auth()->id(),
+                'state_ref' => $this->stateRef($state),
+                'selected_page_id' => $request->input('page_id'),
+                'util_http_status' => $e->status(),
+                'safe_error_code' => $e->errorCode(),
+                'request_id' => $e->requestId(),
             ]);
 
             return response()->json([
-                'message' => $this->facebookProxyErrorMessage($e, 'Failed to save Facebook integration.'),
+                'message' => $this->facebookSaveUserMessage($e),
+                'error_code' => $e->errorCode(),
+                'request_id' => $e->requestId(),
+            ], $e->status());
+        } catch (\Throwable $e) {
+            Log::error('Facebook integration save proxy error', [
+                'state_ref' => $this->stateRef((string) $request->input('state', '')),
+                'page_id' => $request->input('page_id'),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Facebook setup is temporarily unavailable. Please try again.',
             ], $this->facebookProxyStatusCode($e));
         }
     }
@@ -721,5 +631,85 @@ class IntegrationConfigController extends Controller
         return str_ends_with($e->getMessage(), 'is not configured.')
             ? 503
             : 500;
+    }
+
+    protected function facebookPagesUserMessage(ChatbotUtilFacebookException $e): string
+    {
+        if ($e->status() === 404) {
+            return 'This Facebook connection is invalid or expired. Please start again.';
+        }
+
+        if ($e->status() === 409) {
+            return 'Facebook authorization is still finishing. Please try again in a few seconds.';
+        }
+
+        if ($this->isTokenSessionError($e)) {
+            return 'We could not complete Facebook authorization. Please reconnect.';
+        }
+
+        if ($e->status() >= 500) {
+            return 'Facebook setup is temporarily unavailable. Please try again.';
+        }
+
+        return 'Unable to load Facebook Pages. Please try again.';
+    }
+
+    protected function facebookSaveUserMessage(ChatbotUtilFacebookException $e): string
+    {
+        if ($this->isAlreadyCompletedError($e)) {
+            return 'This Facebook connection has already been completed.';
+        }
+
+        if (in_array($e->status(), [404, 410], true)) {
+            return 'This connection session expired. Please start again.';
+        }
+
+        if ($e->status() === 422) {
+            return 'Selected page is no longer available. Please choose another page or reconnect.';
+        }
+
+        if ($e->status() >= 500) {
+            return 'Facebook setup is temporarily unavailable. Please try again.';
+        }
+
+        return 'Unable to save Facebook integration. Please try again.';
+    }
+
+    protected function isTokenSessionError(ChatbotUtilFacebookException $e): bool
+    {
+        $errorCode = strtolower((string) $e->errorCode());
+
+        return str_contains($errorCode, 'token')
+            || str_contains($errorCode, 'session');
+    }
+
+    protected function isAlreadyCompletedError(ChatbotUtilFacebookException $e): bool
+    {
+        $errorCode = strtolower((string) $e->errorCode());
+        $message = strtolower($e->getMessage());
+
+        return str_contains($errorCode, 'already')
+            || str_contains($message, 'already completed');
+    }
+
+    protected function normalizeFacebookPages(array $payload): array
+    {
+        $pages = $payload['pages']
+            ?? $payload['data']
+            ?? data_get($payload, 'result.pages')
+            ?? [];
+
+        return is_array($pages) ? $pages : [];
+    }
+
+    protected function stateRef(?string $state): ?string
+    {
+        $state = trim((string) $state);
+
+        if ($state === '') {
+            return null;
+        }
+
+        return substr(hash('sha256', $state), 0, 16);
     }
 }
