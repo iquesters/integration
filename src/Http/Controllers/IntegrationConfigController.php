@@ -332,6 +332,7 @@ class IntegrationConfigController extends Controller
                     'success' => true,
                     'message' => 'Facebook connection already exists.',
                     'page_id' => $integration->getMeta('facebook_page_id'),
+                    'page_name' => $integration->getMeta('facebook_page_name'),
                 ]);
             }
 
