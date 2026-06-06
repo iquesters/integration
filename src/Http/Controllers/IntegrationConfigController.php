@@ -309,7 +309,32 @@ class IntegrationConfigController extends Controller
             $validated = $request->validate([
                 'state' => 'required|string',
                 'page_id' => 'required|string',
+                'integration_id' => 'nullable|string',
             ]);
+
+            $integration = null;
+            if (!empty($validated['integration_id'])) {
+                $integration = Integration::where('uid', $validated['integration_id'])
+                    ->whereHas('supportedIntegration', function ($query) {
+                        $query->where('name', Constants::FACEBOOK_PAGE);
+                    })
+                    ->first();
+            }
+
+            if ($integration && $integration->getMeta('facebook_connection_status') === 'connected') {
+                Log::info('facebook_integration_save_skipped_already_connected', [
+                    'user_id' => auth()->id(),
+                    'integration_uid' => $integration->uid,
+                    'state_ref' => $this->stateRef($validated['state']),
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Facebook connection already exists.',
+                    'page_id' => $integration->getMeta('facebook_page_id'),
+                    'page_name' => $integration->getMeta('facebook_page_name'),
+                ]);
+            }
 
             Log::info('facebook_integration_save_started', [
                 'user_id' => auth()->id(),
