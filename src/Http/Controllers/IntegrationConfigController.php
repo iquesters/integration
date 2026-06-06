@@ -33,7 +33,8 @@ class IntegrationConfigController extends Controller
             $consumerSecret = $integration->getMeta('consumer_secret');
             $isActive = $integration->getMeta('is_active');
             $chatbot_vector = $integration->getMeta('chatbot_vector');
-            $humanHandoverEnabled = (string) $integration->getMeta('human_handover_enabled', 'false');
+            $humanHandoverEnabled = (string) $integration->getMeta(Constants::HUMAN_HANDOVER_ENABLED, 'false');
+            $allowInternalTesting = (string) $integration->getMeta(Constants::ALLOW_INTERNAL_TESTING, 'false');
 
             Log::info('Loading Integration Configuration', [
                 'integration_uid' => $integrationUid,
@@ -42,6 +43,7 @@ class IntegrationConfigController extends Controller
                 'has_consumer_secret' => !empty($consumerSecret),
                 'is_active' => $isActive,
                 'human_handover_enabled' => $humanHandoverEnabled,
+                'allow_internal_testing' => $allowInternalTesting,
             ]);
 
             switch ($provider->name) {
@@ -62,7 +64,8 @@ class IntegrationConfigController extends Controller
                         compact(
                             'integration',
                             'chatbot_vector',
-                            'humanHandoverEnabled'
+                            'humanHandoverEnabled',
+                            'allowInternalTesting'
                         )
                     );
                 case Constants::FACEBOOK_PAGE:
@@ -147,15 +150,26 @@ class IntegrationConfigController extends Controller
                 ->firstOrFail();
 
             $userId = auth()->id() ?? 0;
-            $enabled = filter_var(
+            $humanHandoverEnabled = filter_var(
                 $request->input('human_handover_enabled', 'false'),
+                FILTER_VALIDATE_BOOLEAN
+            ) ? 'true' : 'false';
+            $allowInternalTesting = filter_var(
+                $request->input('allow_internal_testing', 'false'),
                 FILTER_VALIDATE_BOOLEAN
             ) ? 'true' : 'false';
 
             $this->saveIntegrationMeta(
                 $integration->id,
-                'human_handover_enabled',
-                $enabled,
+                Constants::HUMAN_HANDOVER_ENABLED,
+                $humanHandoverEnabled,
+                $userId
+            );
+
+            $this->saveIntegrationMeta(
+                $integration->id,
+                Constants::ALLOW_INTERNAL_TESTING,
+                $allowInternalTesting,
                 $userId
             );
 

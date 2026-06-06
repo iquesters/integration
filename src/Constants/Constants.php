@@ -8,6 +8,8 @@ namespace Iquesters\Integration\Constants;
 class Constants
 {
     const VECTOR_API_URL = 'vector_api_url';
+    const ALLOW_INTERNAL_TESTING = 'allow_internal_testing';
+    const HUMAN_HANDOVER_ENABLED = 'human_handover_enabled';
     const UNKNOWN = 'unknown';
     const NEW = 'new';
     const ACTIVE = 'active';
