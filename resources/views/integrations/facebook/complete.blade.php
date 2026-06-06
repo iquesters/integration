@@ -44,6 +44,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const state = @json($state);
+    const integrationId = @json($integrationId);
     const pagesUrl = @json($pagesUrl);
     const saveUrl = @json($saveUrl);
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -203,7 +204,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({
                     state: state,
-                    page_id: selectedPageId
+                    page_id: selectedPageId,
+                    integration_id: integrationId
                 })
             });
             const data = await response.json().catch(() => ({}));
