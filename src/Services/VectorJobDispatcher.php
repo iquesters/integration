@@ -8,6 +8,7 @@ use Iquesters\Integration\Jobs\SyncVectorJob;
 use Iquesters\Foundation\Support\ConfProvider;
 use Iquesters\Foundation\Enums\Module;
 use Iquesters\Foundation\System\Traits\Loggable;
+use Iquesters\Integration\Jobs\SyncFaqVectorJob;
 
 class VectorJobDispatcher
 {
@@ -154,5 +155,70 @@ class VectorJobDispatcher
     private static function ctx(array $context): string
     {
         return ' | context=' . json_encode($context, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Dispatch FAQ vector sync job for a single integration
+     */
+    public static function dispatchFaqForIntegration(Integration $integration, bool $recreate = false): void
+    {
+        $logger = new self();
+
+        try {
+            $payload = [
+                'integration_id'  => $integration->id,
+                'integration_uid' => $integration->uid,
+                'recreate_flag'   => $recreate,
+            ];
+
+            $logger->logInfo('Dispatching FAQ vector sync job' . self::ctx([
+                'integration_uid' => $integration->uid,
+            ]));
+
+            SyncFaqVectorJob::dispatch($payload);
+
+        } catch (\Throwable $e) {
+            $logger->logError('Failed to dispatch FAQ vector job: ' . $e->getMessage() . self::ctx([
+                'integration_uid' => $integration->uid ?? null,
+            ]));
+        }
+    }
+
+    /**
+     * Dispatch FAQ vector sync for all active integrations
+     */
+    
+    public static function dispatchFaqForAllActive(): void
+    {
+        $logger = new self();
+
+        try {
+            $conf = ConfProvider::from(Module::INTEGRATION);
+
+            if (! $conf->faq_vector_sync_enabled) {
+                $logger->logInfo('FAQ vector sync scheduler disabled via config');
+                return;
+            }
+
+            $logger->logMethodStart('Scheduled FAQ vector dispatch started');
+
+            Integration::where('status', Constants::ACTIVE)
+                ->chunkById(50, function ($integrations) use ($logger) {
+                    foreach ($integrations as $integration) {
+                        if ($integration->getMeta('faq_sync_enabled') === '0') {
+                            $logger->logInfo('FAQ sync disabled for integration' . self::ctx([
+                                'integration_uid' => $integration->uid,
+                            ]));
+                            continue;
+                        }
+                        self::dispatchFaqForIntegration($integration);
+                    }
+                });
+
+            $logger->logMethodEnd('Scheduled FAQ vector dispatch completed');
+
+        } catch (\Throwable $e) {
+            $logger->logError('Scheduled FAQ dispatch failed: ' . $e->getMessage());
+        }
     }
 }

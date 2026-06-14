@@ -181,6 +181,16 @@ class IntegrationServiceProvider extends ServiceProvider
                 ->dailyAt($conf->vector_sync_schedule_time)
                 ->timezone('UTC')
                 ->name('daily-woocommerce-vector-sync');
+
+            // FAQ vector sync scheduler
+            if ($conf->faq_vector_sync_enabled) {
+                $schedule->call(function () {
+                    VectorJobDispatcher::dispatchFaqForAllActive();
+                })
+                    ->dailyAt($conf->faq_vector_sync_schedule_time)
+                    ->timezone('UTC')
+                    ->name('daily-faq-vector-sync');
+            }
         });
     }
 }

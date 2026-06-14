@@ -357,4 +357,37 @@ class IntegrationConfigController extends Controller
             ]
         );
     }
+
+    /**
+     * Manually trigger FAQ vector re-index for an integration
+     */
+    public function syncFaqVector(Request $request, string $integrationUid)
+    {
+        try {
+            $integration = Integration::where('uid', $integrationUid)
+                ->firstOrFail();
+
+            $payload = [
+                'integration_id'  => $integration->id,
+                'integration_uid' => $integration->uid,
+                'recreate_flag'   => true,
+            ];
+
+            \Iquesters\Integration\Jobs\SyncFaqVectorJob::dispatch($payload);
+
+            Log::info('Manual FAQ vector sync triggered', [
+                'integration_uid' => $integrationUid,
+            ]);
+
+            return back()->with('success', 'FAQ vector re-index queued successfully.');
+
+        } catch (\Throwable $e) {
+            Log::error('Manual FAQ vector sync failed', [
+                'integration_uid' => $integrationUid,
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to queue FAQ vector re-index.');
+        }
+    }
 }

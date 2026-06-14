@@ -232,6 +232,28 @@
     </div>
     @endif
 
+    {{-- FAQ Vector Re-index --}}
+    @if(!empty($isActive))
+    <div class="row mt-3">
+        <div class="col-12">
+            @if(session('success'))
+                <div class="alert alert-success">{{ session('success') }}</div>
+            @endif
+            @if(session('error'))
+                <div class="alert alert-danger">{{ session('error') }}</div>
+            @endif
+            <form method="POST" action="{{ route('integration.faq.vector.sync', $integration->uid) }}">
+                @csrf
+                <button type="submit" class="btn btn-sm btn-outline-secondary"
+                        onclick="return confirm('Re-index FAQ vectors for this integration?')">
+                    <i class="fas fa-fw fa-rotate"></i>
+                    Re-index FAQ Vectors
+                </button>
+            </form>
+        </div>
+    </div>
+    @endif
+
     {{-- Website URL Documentation --}}
     <div class="mt-5 pt-4 border-top">
         <div class="mb-4">

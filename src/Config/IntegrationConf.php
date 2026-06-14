@@ -14,6 +14,9 @@ class IntegrationConf extends BaseConf
     protected bool $vector_sync_enabled;
     protected bool $vector_sync_manual_allowed;
     protected string $vector_sync_schedule_time;
+    // FAQ vector sync configuration
+    protected bool $faq_vector_sync_enabled;
+    protected string $faq_vector_sync_schedule_time;
     
     protected function prepareDefault(BaseConf $default_values)
     {
@@ -25,5 +28,9 @@ class IntegrationConf extends BaseConf
 
         // Daily schedule time (UTC 12 AM)
         $default_values->vector_sync_schedule_time = '10:09';
+
+        // FAQ vector sync
+        $default_values->faq_vector_sync_enabled = true;
+        $default_values->faq_vector_sync_schedule_time = '11:00';
     }
 }
