@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Iquesters\Integration\Constants\Constants;
 use Iquesters\Integration\Jobs\SyncVectorJob;
 use Iquesters\Integration\Models\IntegrationMeta;
+use Iquesters\Integration\Services\VectorJobDispatcher;
 
 class IntegrationConfigController extends Controller
 {
@@ -358,25 +359,22 @@ class IntegrationConfigController extends Controller
         );
     }
 
-    /**
-     * Manually trigger FAQ vector re-index for an integration
-     */
     public function syncFaqVector(Request $request, string $integrationUid)
     {
         try {
             $integration = Integration::where('uid', $integrationUid)
                 ->firstOrFail();
 
-            $payload = [
-                'integration_id'  => $integration->id,
-                'integration_uid' => $integration->uid,
-                'recreate_flag'   => true,
-            ];
-
-            \Iquesters\Integration\Jobs\SyncFaqVectorJob::dispatch($payload);
+            // Use VectorJobDispatcher for consistent logging and error handling
+            VectorJobDispatcher::dispatchFaqForIntegration(
+                $integration,
+                recreate: true,
+                triggeredBy: auth()->id() ?? 0,
+            );
 
             Log::info('Manual FAQ vector sync triggered', [
                 'integration_uid' => $integrationUid,
+                'triggered_by'    => auth()->id(),
             ]);
 
             return back()->with('success', 'FAQ vector re-index queued successfully.');
@@ -384,7 +382,7 @@ class IntegrationConfigController extends Controller
         } catch (\Throwable $e) {
             Log::error('Manual FAQ vector sync failed', [
                 'integration_uid' => $integrationUid,
-                'error' => $e->getMessage(),
+                'error'           => $e->getMessage(),
             ]);
 
             return back()->with('error', 'Failed to queue FAQ vector re-index.');

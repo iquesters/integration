@@ -160,8 +160,11 @@ class VectorJobDispatcher
     /**
      * Dispatch FAQ vector sync job for a single integration
      */
-    public static function dispatchFaqForIntegration(Integration $integration, bool $recreate = false): void
-    {
+    public static function dispatchFaqForIntegration(
+        Integration $integration,
+        bool $recreate = false,
+        int $triggeredBy = 0
+    ): void {
         $logger = new self();
 
         try {
@@ -169,10 +172,12 @@ class VectorJobDispatcher
                 'integration_id'  => $integration->id,
                 'integration_uid' => $integration->uid,
                 'recreate_flag'   => $recreate,
+                'triggered_by'    => $triggeredBy,
             ];
 
             $logger->logInfo('Dispatching FAQ vector sync job' . self::ctx([
                 'integration_uid' => $integration->uid,
+                'triggered_by'    => $triggeredBy,
             ]));
 
             SyncFaqVectorJob::dispatch($payload);
@@ -202,6 +207,8 @@ class VectorJobDispatcher
 
             $logger->logMethodStart('Scheduled FAQ vector dispatch started');
 
+            // FAQ vector sync applies to all active integrations regardless of provider type,
+            // unlike product sync which is WooCommerce-only. Every integration can have FAQs.
             Integration::where('status', Constants::ACTIVE)
                 ->chunkById(50, function ($integrations) use ($logger) {
                     foreach ($integrations as $integration) {
