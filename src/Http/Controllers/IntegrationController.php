@@ -64,7 +64,7 @@ class IntegrationController extends Controller
                 ]))
                 ->get();
 
-            $supportedIntegrations = SupportedIntegration::where('status', 'active')->get();
+            $supportedIntegrations = SupportedIntegration::all();
 
             return view(
                 'integration::integrations.index',

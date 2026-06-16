@@ -7,6 +7,9 @@ namespace Iquesters\Integration\Constants;
  */
 class Constants
 {
+    const VECTOR_API_URL = 'vector_api_url';
+    const ALLOW_INTERNAL_TESTING = 'allow_internal_testing';
+    const HUMAN_HANDOVER_ENABLED = 'human_handover_enabled';
     const UNKNOWN = 'unknown';
     const NEW = 'new';
     const ACTIVE = 'active';
@@ -21,4 +24,5 @@ class Constants
     const SHOPIFY = 'shopify';
     const ZOHO_BOOKS = 'zoho_books';
     const GAUTAMS_CHATBOT = 'gautams-chatbot';
+    const FACEBOOK_PAGE = 'facebook-page';
 };

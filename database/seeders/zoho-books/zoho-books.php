@@ -6,6 +6,6 @@ return [
         'small_name' => 'ZB',
         'nature' => 'REST API',
         'category' => 'accounting',
-        'status' => 'active'
+        'status' => 'draft'
     ]
 ];

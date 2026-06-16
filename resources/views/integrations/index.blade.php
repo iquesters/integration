@@ -57,31 +57,21 @@
                         </td>
 
                         <td>
-                            {{
-                                optional($integration->creator)->name ?? '-'
-                            }}
+                            {{ optional($integration->creator)->name ?? '-' }}
                             <br>
-                            <small>
-                                {{ $integration->created_at->format('d M Y') }}
-                            </small>
+                            <small>{{ $integration->created_at->format('d M Y') }}</small>
                         </td>
                         <td>
-                            {{
-                                method_exists($integration, 'organisations')
-                                    ? optional($integration->organisations->first())->name ?? '-'
-                                    : '-'
-                            }}
+                            {{ method_exists($integration, 'organisations') ? optional($integration->organisations->first())->name ?? '-' : '-' }}
                         </td>
 
                         <td>
                             <div class="d-flex align-items-center justify-content-center gap-2">
-                                @if ($integration->status !== 'deleted')   
+                                @if ($integration->status !== 'deleted')
                                     <a class="btn btn-sm btn-outline-dark" href="{{ route('integration.edit', $integration->uid) }}">
                                         <i class="fas fa-fw fa-edit"></i>
                                     </a>
-                                    <form action="{{ route('integration.destroy', $integration->uid) }}" 
-                                        method="POST" 
-                                        onsubmit="return confirm('Are you sure?')">
+                                    <form action="{{ route('integration.destroy', $integration->uid) }}" method="POST" onsubmit="return confirm('Are you sure?')">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-outline-danger">
@@ -103,30 +93,68 @@
 {{-- ===================== --}}
 {{-- Supported Integrations --}}
 {{-- ===================== --}}
-<div class="mb-3">
-    <h5 class="fs-6 text-muted">
-        Supported Integrations
-    </h5>
-</div>
+@php
+    $groupedSupportedIntegrations = $supportedIntegrations
+        ->sortBy(function ($application) {
+            return [
+                $application->category ?: 'other',
+                $application->name,
+            ];
+        })
+        ->groupBy(function ($application) {
+            return $application->category ?: 'other';
+        });
+@endphp
 
-<div class="row g-3">
-    @foreach ($supportedIntegrations as $application)
+<div data-ui-group-filter>
+    <div class="mb-3 d-flex justify-content-between align-items-center gap-3 flex-wrap">
+        <h5 class="fs-6 text-muted mb-0">
+            Supported Integrations
+        </h5>
 
-        @php
-            $icon = $application->getMeta('icon')
-                ?? '<i class="fa-brands fa-whatsapp"></i>';
-        @endphp
+        <div class="d-flex align-items-center gap-2 ms-auto">
+            <label for="integration-category-filter" class="small text-muted mb-0">Category:</label>
+            <select id="integration-category-filter" class="form-select form-select-sm" style="min-width: 220px;" data-ui-group-filter-select>
+                <option value="all" selected>All</option>
+                @foreach ($groupedSupportedIntegrations as $category => $applications)
+                    <option value="{{ $category }}">{{ ucfirst(str_replace(['-', '_'], ' ', $category)) }}</option>
+                @endforeach
+            </select>
+        </div>
+    </div>
 
-        @include('userinterface::components.card-item', [
-            'type'        => 'integration',
-            'key'         => Str::slug($application->name),
-            'title'       => $application->name,
-            'description' => $application->getMeta('description') ?? 'No description available',
-            'icon'        => $icon,
-            'application' => $application,
-        ])
+    @forelse ($groupedSupportedIntegrations as $category => $applications)
+        <div class="mb-2" data-ui-group-filter-group="{{ $category }}">
+            <div class="d-flex align-items-center mb-2">
+                <h6 class="mb-0 text-muted fw-semibold d-flex align-items-center">
+                    {{ ucfirst(str_replace(['-', '_'], ' ', $category)) }}
+                    <x-userinterface::badge :text="(string) $applications->count()" class="text-primary-emphasis rounded-pill px-2 py-1 ms-2 border-0 shadow-sm" />
+                </h6>
+            </div>
 
-    @endforeach
+            <div class="row g-2">
+                @foreach ($applications as $application)
+                    @php
+                        $icon = $application->getMeta('icon')
+                            ?? '<i class="fa-brands fa-whatsapp"></i>';
+                    @endphp
+
+                    @include('userinterface::components.card-item', [
+                        'type'        => 'integration',
+                        'key'         => Str::slug($application->name),
+                        'title'       => $application->name,
+                        'description' => $application->getMeta('description') ?? 'No description available',
+                        'icon'        => $icon,
+                        'application' => $application,
+                    ])
+                @endforeach
+            </div>
+        </div>
+    @empty
+        <div class="alert alert-light border text-muted mb-0">
+            No supported integrations available.
+        </div>
+    @endforelse
 </div>
 @endsection
 

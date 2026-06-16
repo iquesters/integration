@@ -6,7 +6,8 @@ return [
         'small_name' => 'ROC',
         'nature' => 'AI Agent',
         'category' => 'ai-solutions',
-        'status' => 'active',
+        'status' => 'draft',
     ],
 ];
+
 

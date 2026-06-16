@@ -6,6 +6,7 @@ return [
         'small_name' => 'RSI',
         'nature' => 'AI Agent',
         'category' => 'ai-solutions',
-        'status' => 'active',
+        'status' => 'draft',
     ],
 ];
+

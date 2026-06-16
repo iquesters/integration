@@ -50,10 +50,10 @@ class VectorJobDispatcher
                     [
                         'integration_provider' => $provider->name,
                         'integration_uuid' => $integration->uid,
-                        'recreate_flag' => true,
+                        'recreate_flag' => false,
                     ],
                 ],
-                'force_cleanup' => true,
+                'force_cleanup' => false,
             ];
 
             $logger->logInfo('Dispatching vector sync job' . self::ctx([
