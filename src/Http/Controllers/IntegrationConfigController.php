@@ -11,6 +11,7 @@ use Iquesters\Integration\Constants\Constants;
 use Iquesters\Integration\Exceptions\ChatbotUtilFacebookException;
 use Iquesters\Integration\Jobs\SyncVectorJob;
 use Iquesters\Integration\Models\IntegrationMeta;
+use Iquesters\Integration\Services\VectorJobDispatcher;
 use Iquesters\Integration\Services\ChatbotUtilFacebookClient;
 
 class IntegrationConfigController extends Controller
@@ -641,6 +642,34 @@ class IntegrationConfigController extends Controller
         );
     }
 
+    public function syncFaqVector(Request $request, string $integrationUid)
+    {
+        try {
+            $integration = Integration::where('uid', $integrationUid)
+                ->firstOrFail();
+
+            // Use VectorJobDispatcher for consistent logging and error handling
+            VectorJobDispatcher::dispatchFaqForIntegration(
+                $integration,
+                recreate: true,
+                triggeredBy: auth()->id() ?? 0,
+            );
+
+            Log::info('Manual FAQ vector sync triggered', [
+                'integration_uid' => $integrationUid,
+                'triggered_by'    => auth()->id(),
+            ]);
+
+            return back()->with('success', 'FAQ vector re-index queued successfully.');
+
+        } catch (\Throwable $e) {
+            Log::error('Manual FAQ vector sync failed', [
+                'integration_uid' => $integrationUid,
+                'error'           => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Failed to queue FAQ vector re-index.');
+        }
     protected function syncFacebookConnectionMeta(
         Integration $integration,
         array $responsePayload,

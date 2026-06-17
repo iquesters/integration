@@ -30,6 +30,7 @@ Route::middleware(['web','auth'])->group(function () {
                 Route::get('/{integrationUid}/knob', [IntegrationConfigController::class, 'knob'])->name('knob');
                 Route::get('/{integrationUid}/knob/data', [IntegrationConfigController::class, 'knobData'])->name('knob.data');
                 Route::match(['post', 'put'], '/{integrationUid}/knob/save', [IntegrationConfigController::class, 'knobSave'])->name('knob.save');
+                Route::post('/{integrationUid}/faq-vector-sync', [IntegrationConfigController::class, 'syncFaqVector'])->name('faq.vector.sync');
                 Route::post('/{integrationUid}/knob/activate', [IntegrationConfigController::class, 'knobActivate'])->name('knob.activate');
                 Route::get('/{integrationUid}/configure', [IntegrationConfigController::class, 'configure'])->name('configure');
                 Route::post('/save-configuration', [IntegrationConfigController::class, 'store'])->name('configure.store');

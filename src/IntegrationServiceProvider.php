@@ -160,9 +160,8 @@ class IntegrationServiceProvider extends ServiceProvider
     }
 
 
-    protected function registerScheduler(): void
+   protected function registerScheduler(): void
     {
-        // Only run in console (artisan schedule:run)
         if (! $this->app->runningInConsole()) {
             return;
         }
@@ -173,16 +172,25 @@ class IntegrationServiceProvider extends ServiceProvider
 
             $conf = ConfProvider::from(Module::INTEGRATION);
 
-            if (! $conf->vector_sync_enabled) {
-                return;
+            // Product vector sync — gated by its own flag
+            if ($conf->vector_sync_enabled) {
+                $schedule->call(function () {
+                    VectorJobDispatcher::dispatchForAllActive();
+                })
+                    ->dailyAt($conf->vector_sync_schedule_time)
+                    ->timezone('UTC')
+                    ->name('daily-woocommerce-vector-sync');
             }
 
-            $schedule->call(function () {
-                VectorJobDispatcher::dispatchForAllActive();
-            })
-                ->dailyAt($conf->vector_sync_schedule_time)
-                ->timezone('UTC')
-                ->name('daily-woocommerce-vector-sync');
+            // FAQ sync — gated by its OWN flag independently
+            if ($conf->faq_vector_sync_enabled) {
+                $schedule->call(function () {
+                    VectorJobDispatcher::dispatchFaqForAllActive();
+                })
+                    ->dailyAt($conf->faq_vector_sync_schedule_time)
+                    ->timezone('UTC')
+                    ->name('daily-faq-vector-sync');
+            }
         });
     }
 }
