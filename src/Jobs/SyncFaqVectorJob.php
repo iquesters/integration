@@ -4,8 +4,6 @@ namespace Iquesters\Integration\Jobs;
 
 use Illuminate\Support\Facades\Http;
 use Iquesters\Foundation\Jobs\BaseJob;
-use Iquesters\Foundation\Support\ConfProvider;
-use Iquesters\Foundation\Enums\Module;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -36,9 +34,7 @@ class SyncFaqVectorJob extends BaseJob
                 'payload' => $payload,
             ]));
 
-            // Fix 1 — URL from config, not hardcoded
-            $conf = ConfProvider::from(Module::INTEGRATION);
-            $baseUrl = rtrim($conf->chatbot_job_url, '/');
+            $baseUrl = rtrim(env('CHATBOT_JOB_URL') ?? throw new \RuntimeException('CHATBOT_JOB_URL environment variable is not set.'), '/');
             $url = $baseUrl . '/vector/faq/create';
 
             $this->logInfo('FAQ vector sync calling chatbot-job' . $this->ctx([

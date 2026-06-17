@@ -17,8 +17,6 @@ class IntegrationConf extends BaseConf
     // FAQ vector sync configuration
     protected bool $faq_vector_sync_enabled;
     protected string $faq_vector_sync_schedule_time;
-    // Chatbot job service URL
-    protected string $chatbot_job_url; 
 
     protected function prepareDefault(BaseConf $default_values)
     {
@@ -35,8 +33,5 @@ class IntegrationConf extends BaseConf
         $default_values->faq_vector_sync_enabled = true;
         $default_values->faq_vector_sync_schedule_time = '11:00';
 
-        // no fallback, throws error if not set
-        $default_values->chatbot_job_url = env('CHATBOT_JOB_URL') 
-        ?? throw new \RuntimeException('CHATBOT_JOB_URL environment variable is not set.');
     }
 }
