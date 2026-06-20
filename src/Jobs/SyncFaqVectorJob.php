@@ -4,6 +4,8 @@ namespace Iquesters\Integration\Jobs;
 
 use Illuminate\Support\Facades\Http;
 use Iquesters\Foundation\Jobs\BaseJob;
+use Iquesters\Foundation\Support\ConfProvider;
+use Iquesters\Foundation\Enums\Module;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -12,11 +14,17 @@ class SyncFaqVectorJob extends BaseJob
 {
     protected array $integrationPayload;
     protected ?\Carbon\Carbon $startedAt = null;
+    protected int $operationId;
 
     protected function initialize(...$arguments): void
     {
         [$payload] = $arguments;
         $this->integrationPayload = $payload;
+        $this->operationId = (int) sprintf(
+            '%s%02d',
+            now()->format('ymdHis'),
+            random_int(0, 99)
+        );
     }
 
     public function process(): void
@@ -26,6 +34,7 @@ class SyncFaqVectorJob extends BaseJob
             $this->logMethodStart($this->ctx([
                 'integration_id'  => $this->integrationPayload['integration_id'] ?? null,
                 'integration_uid' => $this->integrationPayload['integration_uid'] ?? null,
+                'operation_id'    => $this->operationId,
             ]));
 
             $payload = $this->buildFaqPayload();
@@ -34,7 +43,8 @@ class SyncFaqVectorJob extends BaseJob
                 'payload' => $payload,
             ]));
 
-            $baseUrl = rtrim(env('CHATBOT_JOB_URL') ?? throw new \RuntimeException('CHATBOT_JOB_URL environment variable is not set.'), '/');
+            $conf = ConfProvider::from(Module::INTEGRATION);
+            $baseUrl = rtrim($conf->chatbot_job_url, '/');
             $url = $baseUrl . '/vector/faq/create';
 
             $this->logInfo('FAQ vector sync calling chatbot-job' . $this->ctx([
@@ -62,6 +72,11 @@ class SyncFaqVectorJob extends BaseJob
                         'body'   => $response->body(),
                     ])
                 );
+                $this->setResponse([
+                    'operation_id'     => $this->operationId,
+                    'request_payload'  => $payload,
+                    'response_body'    => $response->json() ?? $response->body(),
+                ]);
                 return;
             }
 
@@ -73,17 +88,23 @@ class SyncFaqVectorJob extends BaseJob
                 $responseData = ['raw' => $response->body()];
             }
 
-            $this->setResponse($responseData);
+            $this->setResponse([
+                'operation_id'     => $this->operationId,
+                'request_payload'  => $payload,
+                'response_body'    => $responseData,
+            ]);
 
             $this->logMethodEnd($this->ctx([
                 'integration_id'  => $this->integrationPayload['integration_id'] ?? null,
                 'integration_uid' => $this->integrationPayload['integration_uid'] ?? null,
+                'operation_id'    => $this->operationId,
             ]));
 
         } catch (\Throwable $e) {
             $this->logError('FAQ Vector sync failed' . $this->ctx([
                 'integration_id'  => $this->integrationPayload['integration_id'] ?? null,
                 'integration_uid' => $this->integrationPayload['integration_uid'] ?? null,
+                'operation_id'    => $this->operationId,
                 'error'           => $e->getMessage(),
             ]));
             throw $e;
@@ -108,15 +129,14 @@ class SyncFaqVectorJob extends BaseJob
                 ? abs((int) $this->startedAt->diffInSeconds($finishedAt))
                 : null;
 
-            // Fix 4 — use triggered_by from payload for audit trail
-            // 0 = scheduler (system), non-zero = admin who clicked manual trigger
             $triggeredBy = (int) ($this->integrationPayload['triggered_by'] ?? 0);
 
             DB::table('vector_responses')->insert([
                 'uid'              => (string) Str::ulid(),
                 'integration_id'   => $this->integrationPayload['integration_id'] ?? null,
                 'job_uuid'         => $this->job?->getJobId(),
-                'response'         => json_encode($this->getResponse()),
+                'operation_id'     => $this->operationId,
+                'response'         => json_encode($this->getResponse(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 'started_at'       => $this->startedAt,
                 'finished_at'      => $finishedAt,
                 'duration_seconds' => $duration,
@@ -138,7 +158,6 @@ class SyncFaqVectorJob extends BaseJob
     private function buildFaqPayload(): array
     {
         return [
-            'integration_id'  => $this->integrationPayload['integration_id'] ?? null,
             'integration_uid' => $this->integrationPayload['integration_uid'] ?? null,
             'recreate_flag'   => (bool) ($this->integrationPayload['recreate_flag'] ?? false),
         ];
