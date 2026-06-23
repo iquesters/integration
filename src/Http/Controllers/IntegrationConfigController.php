@@ -670,6 +670,8 @@ class IntegrationConfigController extends Controller
 
             return back()->with('error', 'Failed to queue FAQ vector re-index.');
         }
+    }
+    
     protected function syncFacebookConnectionMeta(
         Integration $integration,
         array $responsePayload,
