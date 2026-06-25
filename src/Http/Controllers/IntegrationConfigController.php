@@ -34,7 +34,7 @@ class IntegrationConfigController extends Controller
             $websiteUrl = $integration->getMeta('website_url');
             $consumerKey = $integration->getMeta('consumer_key');
             $consumerSecret = $integration->getMeta('consumer_secret');
-            $isActive = $integration->getMeta('is_active');
+            $isActive = ($integration->status === Constants::ACTIVE);
             $chatbot_vector = $integration->getMeta('chatbot_vector');
             $humanHandoverEnabled = (string) $integration->getMeta(Constants::HUMAN_HANDOVER_ENABLED, 'false');
             $allowInternalTesting = (string) $integration->getMeta(Constants::ALLOW_INTERNAL_TESTING, 'false');
