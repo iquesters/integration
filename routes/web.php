@@ -10,7 +10,7 @@ use Iquesters\Integration\Http\Controllers\IntegrationApiConfigController;
 use Iquesters\Integration\Http\Controllers\IntegrationConfigController;
 use Iquesters\Integration\Http\Controllers\WebsiteController;
 
-Route::middleware(['web','auth'])->group(function () {
+Route::middleware(['web','auth', \Iquesters\Foundation\Http\Middleware\EnsureTenantResourceAdmin::class.':integration'])->group(function () {
     Route::post('/api/fetch-website', [WebsiteController::class, 'fetchWebsite'])->name('fetch.website');
     Route::post('/social/facebook/connect/start', [IntegrationConfigController::class, 'startFacebookConnect'])->name('social.facebook.connect.start');
     Route::get('/social/facebook/connect/complete', FacebookConnectCompletionController::class)->name('social.facebook.connect.complete');
