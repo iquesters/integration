@@ -10,6 +10,7 @@ use Iquesters\Integration\Models\OrganisationIntegrationMeta;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Client;
+use Iquesters\Foundation\Security\TenantAuthorization;
 use Iquesters\Organisation\Models\Organisation;
 use Illuminate\Support\Str;
 use Iquesters\Integration\Models\IntegrationMeta;
@@ -27,21 +28,26 @@ class IntegrationController extends Controller
         try {
             $user = Auth::user();
 
-            if (!$user) {
+            if (! $user) {
                 abort(401);
             }
 
-            $organisationIds = collect();
+            $policy = app(TenantAuthorization::class);
+            $isPlatform = $policy->isPlatformAdmin($user);
+            $organisationIds = collect(request()->attributes->get('admin_organisation_ids', []));
 
             // User may or may not support organisations
-            if (method_exists($user, 'organisations')) {
+            if (method_exists($user, 'organisations') && ! $isPlatform) {
                 $organisationIds = $user
                     ->organisations()
                     ->pluck('organisations.id');
             }
 
-            $integrations = Integration::query()
-                ->where(function ($query) use ($user, $organisationIds) {
+            $integrations = $policy->scopeResources(Integration::query(), $user, Integration::class)
+                ->where(function ($query) use ($user, $organisationIds, $isPlatform) {
+                    if ($isPlatform) {
+                        return;
+                    }
 
                     // Personal integrations
                     $query->where('user_id', $user->id);
@@ -76,7 +82,7 @@ class IntegrationController extends Controller
             Log::error('Integration index error', [
                 'user_id' => Auth::id(),
                 'message' => $e->getMessage(),
-                'trace'   => $e->getTraceAsString(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return redirect()

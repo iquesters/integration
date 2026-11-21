@@ -52,7 +52,11 @@ class ChatbotUtilFacebookClient
             ->asJson()
             ->timeout($this->timeout());
 
-        // @todo Add internal auth header after chatbot-util auth contract is finalized.
+        $token = (string) config('integration.chatbot_util.internal_token', env('CHATBOT_UTIL_INTERNAL_TOKEN', ''));
+        if ($token === '') {
+            throw new ChatbotUtilFacebookException('Facebook setup is temporarily unavailable.', 503, 'internal_auth_unconfigured');
+        }
+        $request = $request->withToken($token);
 
         return $request;
     }
@@ -95,7 +99,7 @@ class ChatbotUtilFacebookClient
             );
         }
 
-        return rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
+        return rtrim($baseUrl, '/').'/'.ltrim($path, '/');
     }
 
     protected function timeout(): int
@@ -108,7 +112,7 @@ class ChatbotUtilFacebookClient
     protected function safeMessage(array $payload, string $fallbackMessage): string
     {
         foreach (['message', 'detail', 'error'] as $key) {
-            if (!empty($payload[$key]) && is_string($payload[$key])) {
+            if (! empty($payload[$key]) && is_string($payload[$key])) {
                 return $payload[$key];
             }
         }
