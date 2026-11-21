@@ -3,6 +3,8 @@
 namespace Iquesters\Integration\Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Iquesters\Integration\Services\ChatbotUtilFacebookClient;
 use Iquesters\Foundation\Http\Middleware\EnsureTenantResourceAdmin;
 use Iquesters\Integration\Tests\Fixtures\TenantAuthorizationFixture;
 use Spatie\Permission\Models\Role;
@@ -13,6 +15,17 @@ class IntegrationAuthorizationTest extends TenantAuthorizationFixture
     {
         parent::defineRoutes($router);
         require __DIR__.'/../../routes/web.php';
+    }
+
+    public function test_facebook_proxy_reads_config_cached_internal_service_token(): void
+    {
+        // Laravel config:cache can remove .env from request-time lookups.
+        // The package must use the cached token, never a raw env fallback.
+        config()->set('integration.chatbot_util.api_url', 'https://util.fixture.invalid');
+        config()->set('integration.chatbot_util.internal_token', 'cached-test-only');
+        Http::fake(['util.fixture.invalid/*' => Http::response(['state' => 'test-state'], 200)]);
+        app(ChatbotUtilFacebookClient::class)->startFacebookConnect('A', 'Fixture');
+        Http::assertSent(fn ($request) => $request->hasHeader('Authorization', 'Bearer cached-test-only'));
     }
 
     public function test_actual_config_and_credential_routes_are_guarded(): void
