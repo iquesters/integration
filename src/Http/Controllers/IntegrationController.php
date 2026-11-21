@@ -10,6 +10,7 @@ use Iquesters\Integration\Models\OrganisationIntegrationMeta;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Client;
+use Iquesters\Foundation\Security\TenantAuthorization;
 use Iquesters\Organisation\Models\Organisation;
 use Illuminate\Support\Str;
 use Iquesters\Integration\Models\IntegrationMeta;
