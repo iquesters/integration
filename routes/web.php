@@ -9,22 +9,23 @@ use Iquesters\Integration\Http\Controllers\IntApiResponseMatchingContactControll
 use Iquesters\Integration\Http\Controllers\IntegrationApiConfigController;
 use Iquesters\Integration\Http\Controllers\IntegrationConfigController;
 use Iquesters\Integration\Http\Controllers\WebsiteController;
+use Iquesters\Integration\Http\Middleware\RequireLegacyIntegrationWrites;
 
 Route::middleware(['web','auth', \Iquesters\Foundation\Http\Middleware\EnsureTenantResourceAdmin::class.':integration'])->group(function () {
     Route::post('/api/fetch-website', [WebsiteController::class, 'fetchWebsite'])->name('fetch.website');
-    Route::post('/social/facebook/connect/start', [IntegrationConfigController::class, 'startFacebookConnect'])->name('social.facebook.connect.start');
+    Route::post('/social/facebook/connect/start', [IntegrationConfigController::class, 'startFacebookConnect'])->middleware(RequireLegacyIntegrationWrites::class)->name('social.facebook.connect.start');
     Route::get('/social/facebook/connect/complete', FacebookConnectCompletionController::class)->name('social.facebook.connect.complete');
     Route::get('/social/facebook/pages', [IntegrationConfigController::class, 'facebookPages'])->name('social.facebook.pages');
-    Route::post('/social/facebook/integration/save', [IntegrationConfigController::class, 'saveFacebookIntegration'])->name('social.facebook.integration.save');
+    Route::post('/social/facebook/integration/save', [IntegrationConfigController::class, 'saveFacebookIntegration'])->middleware(RequireLegacyIntegrationWrites::class)->name('social.facebook.integration.save');
     // Route::prefix('Organisation')->name('organisations.')->group(function () {
         // Route::prefix('{organisationUid}')->group(function () {
             Route::prefix('integrations')->name('integration.')->group(function () {
                 Route::get('/', [IntegrationController::class, 'index'])->name('index');
                 Route::get('/create', [IntegrationController::class, 'create'])->name('create');
-                Route::post('/', [IntegrationController::class, 'store'])->name('store');
+                Route::post('/', [IntegrationController::class, 'store'])->middleware(RequireLegacyIntegrationWrites::class)->name('store');
                 Route::get('/{integrationUid}/edit', [IntegrationController::class, 'edit'])->name('edit');
-                Route::put('/{integrationUid}', [IntegrationController::class, 'update'])->name('update');
-                Route::delete('/{integrationUid}', [IntegrationController::class, 'destroy'])->name('destroy');
+                Route::put('/{integrationUid}', [IntegrationController::class, 'update'])->middleware(RequireLegacyIntegrationWrites::class)->name('update');
+                Route::delete('/{integrationUid}', [IntegrationController::class, 'destroy'])->middleware(RequireLegacyIntegrationWrites::class)->name('destroy');
                 Route::get('/{integrationUid}', [IntegrationController::class, 'show'])->name('show');
                 
                 Route::get('/{integrationUid}/knob', [IntegrationConfigController::class, 'knob'])->name('knob');
@@ -33,7 +34,7 @@ Route::middleware(['web','auth', \Iquesters\Foundation\Http\Middleware\EnsureTen
                 Route::post('/{integrationUid}/faq-vector-sync', [IntegrationConfigController::class, 'syncFaqVector'])->name('faq.vector.sync');
                 Route::post('/{integrationUid}/knob/activate', [IntegrationConfigController::class, 'knobActivate'])->name('knob.activate');
                 Route::get('/{integrationUid}/configure', [IntegrationConfigController::class, 'configure'])->name('configure');
-                Route::post('/save-configuration', [IntegrationConfigController::class, 'store'])->name('configure.store');
+                Route::post('/save-configuration', [IntegrationConfigController::class, 'store'])->middleware(RequireLegacyIntegrationWrites::class)->name('configure.store');
                 Route::post('/{integrationUid}/configure/gautams-bot', [IntegrationConfigController::class, 'saveGautamsBotConfiguration'])->name('configure.gautams-bot');
                 
                 Route::get('/{integrationUid}/apiconf', [IntegrationApiConfigController::class, 'apiconf'])->name('apiconf');
@@ -45,7 +46,7 @@ Route::middleware(['web','auth', \Iquesters\Foundation\Http\Middleware\EnsureTen
                 Route::get('/{integrationUid}/syncdata', [IntegrationConfigController::class, 'syncdata'])->name('syncdata');
                 
             
-                Route::post('/{integrationId}/toggle', [IntegrationController::class, 'toggleIntegration'])->name('toggle');
+                Route::post('/{integrationId}/toggle', [IntegrationController::class, 'toggleIntegration'])->middleware(RequireLegacyIntegrationWrites::class)->name('toggle');
                 Route::get('/{integrationUid}/show', [IntegrationController::class, 'showZohoBooks'])->name('show-zoho');
                 Route::get('/{integrationUid}/data', [IntegrationController::class, 'showZohoBooksData'])->name('data');
 
